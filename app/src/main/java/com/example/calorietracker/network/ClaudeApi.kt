@@ -24,7 +24,7 @@ class ClaudeApiException(message: String) : Exception(message)
  */
 object ClaudeApi {
     private const val ENDPOINT = "https://api.anthropic.com/v1/messages"
-    private const val MODEL = "claude-opus-5"
+    private const val MODEL = "claude-sonnet-5"
     private const val ANTHROPIC_VERSION = "2023-06-01"
 
     private const val SYSTEM_PROMPT =
