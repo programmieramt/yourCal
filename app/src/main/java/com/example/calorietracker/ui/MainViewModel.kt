@@ -4,8 +4,10 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calorietracker.data.AppDatabase
+import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
 import com.example.calorietracker.data.SettingsStore
+import com.example.calorietracker.data.WeightEntry
 import com.example.calorietracker.repository.FoodRepository
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -152,11 +154,49 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateEntry(entry: FoodEntry) {
+        viewModelScope.launch { repository.updateEntry(entry) }
+    }
+
     fun deleteEntry(entry: FoodEntry) {
         viewModelScope.launch { repository.deleteEntry(entry) }
     }
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    val favorites: StateFlow<List<FavoriteEntry>> = repository
+        .observeFavorites()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addFavorite(entry: FoodEntry) {
+        viewModelScope.launch { repository.addFavorite(entry) }
+    }
+
+    fun removeFavorite(favorite: FavoriteEntry) {
+        viewModelScope.launch { repository.removeFavorite(favorite) }
+    }
+
+    fun addFromFavorite(favorite: FavoriteEntry) {
+        viewModelScope.launch {
+            try {
+                repository.addEntryFromFavorite(favorite)
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Unbekannter Fehler"
+            }
+        }
+    }
+
+    val weightEntries: StateFlow<List<WeightEntry>> = repository
+        .observeWeightEntries()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun addWeightEntry(weightKg: Double) {
+        viewModelScope.launch { repository.addWeightEntry(weightKg) }
+    }
+
+    fun deleteWeightEntry(entry: WeightEntry) {
+        viewModelScope.launch { repository.deleteWeightEntry(entry) }
     }
 }

@@ -5,9 +5,15 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [FoodEntry::class], version = 1, exportSchema = false)
+@Database(
+    entities = [FoodEntry::class, FavoriteEntry::class, WeightEntry::class],
+    version = 2,
+    exportSchema = false,
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun foodDao(): FoodDao
+    abstract fun favoriteDao(): FavoriteDao
+    abstract fun weightDao(): WeightDao
 
     companion object {
         @Volatile
@@ -19,7 +25,10 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "calorie_tracker.db",
-                ).build().also { instance = it }
+                )
+                    // Keine Migrationen bisher nötig — App noch ohne Nutzerbasis.
+                    .fallbackToDestructiveMigration(dropAllTables = true)
+                    .build().also { instance = it }
             }
     }
 }

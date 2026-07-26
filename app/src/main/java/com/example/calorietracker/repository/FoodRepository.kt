@@ -1,8 +1,10 @@
 package com.example.calorietracker.repository
 
 import com.example.calorietracker.data.AppDatabase
+import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
 import com.example.calorietracker.data.SettingsStore
+import com.example.calorietracker.data.WeightEntry
 import com.example.calorietracker.network.ClaudeApi
 import com.example.calorietracker.network.ClaudeApiException
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +35,54 @@ class FoodRepository(
         entry.copy(id = id)
     }
 
+    suspend fun updateEntry(entry: FoodEntry) = withContext(Dispatchers.IO) {
+        database.foodDao().update(entry)
+    }
+
     suspend fun deleteEntry(entry: FoodEntry) = withContext(Dispatchers.IO) {
         database.foodDao().delete(entry)
+    }
+
+    fun observeFavorites(): Flow<List<FavoriteEntry>> = database.favoriteDao().observeAll()
+
+    suspend fun addFavorite(entry: FoodEntry) = withContext(Dispatchers.IO) {
+        database.favoriteDao().insert(
+            FavoriteEntry(
+                description = entry.description,
+                calories = entry.calories,
+                proteinG = entry.proteinG,
+                carbsG = entry.carbsG,
+                fatG = entry.fatG,
+            ),
+        )
+    }
+
+    suspend fun removeFavorite(favorite: FavoriteEntry) = withContext(Dispatchers.IO) {
+        database.favoriteDao().delete(favorite)
+    }
+
+    suspend fun addEntryFromFavorite(favorite: FavoriteEntry): FoodEntry = withContext(Dispatchers.IO) {
+        val entry = FoodEntry(
+            timestamp = System.currentTimeMillis(),
+            description = favorite.description,
+            calories = favorite.calories,
+            proteinG = favorite.proteinG,
+            carbsG = favorite.carbsG,
+            fatG = favorite.fatG,
+        )
+        val id = database.foodDao().insert(entry)
+        entry.copy(id = id)
+    }
+
+    fun observeWeightEntries(): Flow<List<WeightEntry>> = database.weightDao().observeAll()
+
+    suspend fun addWeightEntry(weightKg: Double): WeightEntry = withContext(Dispatchers.IO) {
+        val entry = WeightEntry(timestamp = System.currentTimeMillis(), weightKg = weightKg)
+        val id = database.weightDao().insert(entry)
+        entry.copy(id = id)
+    }
+
+    suspend fun deleteWeightEntry(entry: WeightEntry) = withContext(Dispatchers.IO) {
+        database.weightDao().delete(entry)
     }
 }

@@ -2,6 +2,7 @@ package com.example.calorietracker.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,11 +15,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,6 +43,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -48,8 +60,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -60,14 +74,17 @@ import java.util.Locale
 fun HomeScreen(
     viewModel: MainViewModel,
     onOpenSettings: () -> Unit,
+    onOpenWeight: () -> Unit,
 ) {
     val summary by viewModel.weekSummary.collectAsState()
     val dailyCalories by viewModel.dailyCalories.collectAsState()
     val entriesByDay by viewModel.entriesByDay.collectAsState()
+    val favorites by viewModel.favorites.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     var description by rememberSaveable { mutableStateOf("") }
+    var editingEntry by remember { mutableStateOf<FoodEntry?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(errorMessage) {
@@ -77,11 +94,25 @@ fun HomeScreen(
         }
     }
 
+    editingEntry?.let { entry ->
+        EditEntryDialog(
+            entry = entry,
+            onDismiss = { editingEntry = null },
+            onSave = {
+                viewModel.updateEntry(it)
+                editingEntry = null
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Kalorien Tracker") },
                 actions = {
+                    IconButton(onClick = onOpenWeight) {
+                        Icon(Icons.Filled.MonitorWeight, contentDescription = "Gewichtsverlauf")
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = "Einstellungen")
                     }
@@ -107,6 +138,25 @@ fun HomeScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             WeekBarChart(days = dailyCalories, dailyTargetCalories = summary.dailyTargetCalories)
+
+            if (favorites.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Favoriten",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(favorites, key = { it.id }) { favorite ->
+                        FavoriteChip(
+                            favorite = favorite,
+                            onClick = { viewModel.addFromFavorite(favorite) },
+                            onRemove = { viewModel.removeFavorite(favorite) },
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -157,7 +207,12 @@ fun HomeScreen(
                         DayHeader(day = day, dailyTargetCalories = summary.dailyTargetCalories)
                     }
                     items(day.entries, key = { it.id }) { entry ->
-                        FoodEntryRow(entry = entry, onDelete = { viewModel.deleteEntry(entry) })
+                        FoodEntryRow(
+                            entry = entry,
+                            onDelete = { viewModel.deleteEntry(entry) },
+                            onEdit = { editingEntry = entry },
+                            onFavorite = { viewModel.addFavorite(entry) },
+                        )
                         HorizontalDivider()
                     }
                 }
@@ -336,10 +391,16 @@ private fun DayHeader(day: DayEntries, dailyTargetCalories: Int) {
 private val timeFormat = SimpleDateFormat("EEE HH:mm", Locale.GERMAN)
 
 @Composable
-private fun FoodEntryRow(entry: FoodEntry, onDelete: () -> Unit) {
+private fun FoodEntryRow(
+    entry: FoodEntry,
+    onDelete: () -> Unit,
+    onEdit: () -> Unit,
+    onFavorite: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onEdit)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -354,8 +415,119 @@ private fun FoodEntryRow(entry: FoodEntry, onDelete: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        IconButton(onClick = onFavorite) {
+            Icon(Icons.Filled.Star, contentDescription = "Als Favorit speichern")
+        }
         IconButton(onClick = onDelete) {
             Icon(Icons.Filled.Delete, contentDescription = "Löschen")
         }
     }
+}
+
+@Composable
+private fun FavoriteChip(
+    favorite: FavoriteEntry,
+    onClick: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    AssistChip(
+        onClick = onClick,
+        label = {
+            Text(
+                "${favorite.description.take(24)} · ${favorite.calories} kcal",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        },
+        trailingIcon = {
+            Icon(
+                Icons.Filled.Close,
+                contentDescription = "Favorit entfernen",
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable(onClick = onRemove),
+            )
+        },
+    )
+}
+
+@Composable
+private fun EditEntryDialog(
+    entry: FoodEntry,
+    onDismiss: () -> Unit,
+    onSave: (FoodEntry) -> Unit,
+) {
+    var description by remember(entry.id) { mutableStateOf(entry.description) }
+    var calories by remember(entry.id) { mutableStateOf(entry.calories.toString()) }
+    var proteinG by remember(entry.id) { mutableStateOf(entry.proteinG.toString()) }
+    var carbsG by remember(entry.id) { mutableStateOf(entry.carbsG.toString()) }
+    var fatG by remember(entry.id) { mutableStateOf(entry.fatG.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Eintrag bearbeiten") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) {
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Beschreibung") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = calories,
+                    onValueChange = { calories = it },
+                    label = { Text("Kalorien (kcal)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = proteinG,
+                    onValueChange = { proteinG = it },
+                    label = { Text("Protein (g)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = carbsG,
+                    onValueChange = { carbsG = it },
+                    label = { Text("Kohlenhydrate (g)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = fatG,
+                    onValueChange = { fatG = it },
+                    label = { Text("Fett (g)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(
+                    entry.copy(
+                        description = description.trim().ifBlank { entry.description },
+                        calories = calories.toIntOrNull() ?: entry.calories,
+                        proteinG = proteinG.toDoubleOrNull() ?: entry.proteinG,
+                        carbsG = carbsG.toDoubleOrNull() ?: entry.carbsG,
+                        fatG = fatG.toDoubleOrNull() ?: entry.fatG,
+                    ),
+                )
+            }) {
+                Text("Speichern")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
+        },
+    )
 }
