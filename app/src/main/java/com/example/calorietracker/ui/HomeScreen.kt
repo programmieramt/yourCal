@@ -63,7 +63,7 @@ fun HomeScreen(
 ) {
     val summary by viewModel.weekSummary.collectAsState()
     val dailyCalories by viewModel.dailyCalories.collectAsState()
-    val entries by viewModel.weekEntries.collectAsState()
+    val entriesByDay by viewModel.entriesByDay.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
@@ -152,9 +152,14 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                items(entries, key = { it.id }) { entry ->
-                    FoodEntryRow(entry = entry, onDelete = { viewModel.deleteEntry(entry) })
-                    HorizontalDivider()
+                entriesByDay.forEach { day ->
+                    item(key = "header_${day.dayStart}") {
+                        DayHeader(day = day, dailyTargetCalories = summary.dailyTargetCalories)
+                    }
+                    items(day.entries, key = { it.id }) { entry ->
+                        FoodEntryRow(entry = entry, onDelete = { viewModel.deleteEntry(entry) })
+                        HorizontalDivider()
+                    }
                 }
             }
         }
@@ -298,6 +303,33 @@ private fun MacroChip(label: String, grams: Double) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("${grams.toInt()} g", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Text(label, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun DayHeader(day: DayEntries, dailyTargetCalories: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            day.label,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            "${day.totalCalories} kcal",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            color = if (day.totalCalories > dailyTargetCalories) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
     }
 }
 

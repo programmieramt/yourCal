@@ -41,6 +41,13 @@ data class DayCalories(
     val isToday: Boolean,
 )
 
+data class DayEntries(
+    val dayStart: Long,
+    val label: String,
+    val totalCalories: Int,
+    val entries: List<FoodEntry>,
+)
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     val settingsStore = SettingsStore(application)
     private val repository = FoodRepository(AppDatabase.getInstance(application), settingsStore)
@@ -51,16 +58,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    /** Rollierendes 7-Tage-Fenster (heute + 6 Tage zurück, ab Mitternacht). */
-    private fun startOfRollingWeek(): Long {
+    /** Mitternacht des Tages vor [daysAgo] Tagen (0 = heute). */
+    private fun startOfDay(daysAgo: Int): Long {
         val cal = Calendar.getInstance()
-        cal.add(Calendar.DAY_OF_YEAR, -6)
+        cal.add(Calendar.DAY_OF_YEAR, -daysAgo)
         cal.set(Calendar.HOUR_OF_DAY, 0)
         cal.set(Calendar.MINUTE, 0)
         cal.set(Calendar.SECOND, 0)
         cal.set(Calendar.MILLISECOND, 0)
         return cal.timeInMillis
     }
+
+    /** Rollierendes 7-Tage-Fenster (heute + 6 Tage zurück, ab Mitternacht). */
+    private fun startOfRollingWeek(): Long = startOfDay(6)
 
     val weekEntries: StateFlow<List<FoodEntry>> = repository
         .observeEntriesSince(startOfRollingWeek())
@@ -80,17 +90,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WeekSummary())
 
     private val dayLabelFormat = SimpleDateFormat("EEE", Locale.GERMAN)
+    private val dayHeaderFormat = SimpleDateFormat("EEEE, dd.MM.", Locale.GERMAN)
 
     /** Kalorien pro Tag im rollierenden 7-Tage-Fenster, älteste zuerst. */
     val dailyCalories: StateFlow<List<DayCalories>> = weekEntries.map { entries ->
         (6 downTo 0).map { daysAgo ->
-            val dayCal = Calendar.getInstance()
-            dayCal.add(Calendar.DAY_OF_YEAR, -daysAgo)
-            dayCal.set(Calendar.HOUR_OF_DAY, 0)
-            dayCal.set(Calendar.MINUTE, 0)
-            dayCal.set(Calendar.SECOND, 0)
-            dayCal.set(Calendar.MILLISECOND, 0)
-            val dayStart = dayCal.timeInMillis
+            val dayStart = startOfDay(daysAgo)
             val dayEnd = dayStart + DAY_MILLIS
             val calories = entries
                 .filter { it.timestamp in dayStart until dayEnd }
@@ -101,6 +106,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 isToday = daysAgo == 0,
             )
         }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private fun dayHeaderLabel(dayStart: Long): String = when (dayStart) {
+        startOfDay(0) -> "Heute"
+        startOfDay(1) -> "Gestern"
+        else -> dayHeaderFormat.format(Date(dayStart))
+    }
+
+    /** Einträge der letzten 7 Tage, nach Tag gruppiert (neuester Tag zuerst). */
+    val entriesByDay: StateFlow<List<DayEntries>> = weekEntries.map { entries ->
+        entries
+            .groupBy { entry ->
+                val cal = Calendar.getInstance()
+                cal.timeInMillis = entry.timestamp
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                cal.timeInMillis
+            }
+            .toSortedMap(compareByDescending { it })
+            .map { (dayStart, dayEntries) ->
+                DayEntries(
+                    dayStart = dayStart,
+                    label = dayHeaderLabel(dayStart),
+                    totalCalories = dayEntries.sumOf { it.calories },
+                    entries = dayEntries,
+                )
+            }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun addEntry(description: String) {
