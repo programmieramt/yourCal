@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,6 +40,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.calorietracker.data.WeightEntry
@@ -54,6 +57,12 @@ fun WeightScreen(
     val weightEntries by viewModel.weightEntries.collectAsState()
     var weightInput by rememberSaveable { mutableStateOf("") }
     val parsedWeight = weightInput.replace(",", ".").toDoubleOrNull()
+    val submitWeight: () -> Unit = {
+        parsedWeight?.let {
+            viewModel.addWeightEntry(it)
+            weightInput = ""
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -71,24 +80,25 @@ fun WeightScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(16.dp)
+                .imePadding(),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = weightInput,
                     onValueChange = { weightInput = it },
                     label = { Text("Gewicht (kg)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Send,
+                    ),
+                    keyboardActions = KeyboardActions(onSend = { submitWeight() }),
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
-                    onClick = {
-                        parsedWeight?.let {
-                            viewModel.addWeightEntry(it)
-                            weightInput = ""
-                        }
-                    },
+                    onClick = submitWeight,
                     enabled = parsedWeight != null,
                 ) {
                     Text("Eintragen")

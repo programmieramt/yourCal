@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -60,6 +62,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -121,100 +124,120 @@ fun HomeScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Column(
+        val submitEntry: () -> Unit = {
+            val text = description
+            if (text.isNotBlank() && !isLoading) {
+                description = ""
+                viewModel.addEntry(text)
+            }
+        }
+
+        // Ein einziger LazyColumn für den ganzen Screen: eine LazyColumn *innerhalb*
+        // einer scrollbaren Column würde mit unendlicher Höhen-Constraint abstürzen,
+        // deshalb sind Karte/Chart/Eingabe/Liste hier alles Items derselben Liste.
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(16.dp)
+                .imePadding(),
         ) {
-            WeekProgressCard(summary)
+            item {
+                Column {
+                    WeekProgressCard(summary)
 
-            Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                "Tagesverteilung",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            WeekBarChart(days = dailyCalories, dailyTargetCalories = summary.dailyTargetCalories)
+                    Text(
+                        "Tagesverteilung",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    WeekBarChart(days = dailyCalories, dailyTargetCalories = summary.dailyTargetCalories)
+                }
+            }
 
             if (favorites.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    "Favoriten",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(favorites, key = { it.id }) { favorite ->
-                        FavoriteChip(
-                            favorite = favorite,
-                            onClick = { viewModel.addFromFavorite(favorite) },
-                            onRemove = { viewModel.removeFavorite(favorite) },
+                item {
+                    Column {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Favoriten",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
                         )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(favorites, key = { it.id }) { favorite ->
+                                FavoriteChip(
+                                    favorite = favorite,
+                                    onClick = { viewModel.addFromFavorite(favorite) },
+                                    onRemove = { viewModel.removeFavorite(favorite) },
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            item {
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text("Was hast du gegessen?") },
-                placeholder = { Text("z.B. 150g Reis mit Kikkoman Sushi-Sauce") },
-                singleLine = false,
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    val text = description
-                    description = ""
-                    viewModel.addEntry(text)
-                },
-                enabled = description.isNotBlank() && !isLoading,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.height(20.dp),
-                        strokeWidth = 2.dp,
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Was hast du gegessen?") },
+                        placeholder = { Text("z.B. 150g Reis mit Kikkoman Sushi-Sauce") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { submitEntry() }),
                     )
-                } else {
-                    Text("Hinzufügen")
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = submitEntry,
+                        enabled = description.isNotBlank() && !isLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.height(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Text("Hinzufügen")
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        "Letzte 7 Tage",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                "Letzte 7 Tage",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                entriesByDay.forEach { day ->
-                    item(key = "header_${day.dayStart}") {
-                        DayHeader(day = day, dailyTargetCalories = summary.dailyTargetCalories)
-                    }
-                    items(day.entries, key = { it.id }) { entry ->
-                        FoodEntryRow(
-                            entry = entry,
-                            onDelete = { viewModel.deleteEntry(entry) },
-                            onEdit = { editingEntry = entry },
-                            onFavorite = { viewModel.addFavorite(entry) },
-                        )
-                        HorizontalDivider()
-                    }
+            entriesByDay.forEach { day ->
+                item(key = "header_${day.dayStart}") {
+                    DayHeader(day = day, dailyTargetCalories = summary.dailyTargetCalories)
+                }
+                items(day.entries, key = { it.id }) { entry ->
+                    FoodEntryRow(
+                        entry = entry,
+                        onDelete = { viewModel.deleteEntry(entry) },
+                        onEdit = { editingEntry = entry },
+                        onFavorite = { viewModel.addFavorite(entry) },
+                    )
+                    HorizontalDivider()
                 }
             }
         }
