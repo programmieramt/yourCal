@@ -39,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -57,10 +59,14 @@ fun WeightScreen(
     val weightEntries by viewModel.weightEntries.collectAsState()
     var weightInput by rememberSaveable { mutableStateOf("") }
     val parsedWeight = weightInput.replace(",", ".").toDoubleOrNull()
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val submitWeight: () -> Unit = {
         parsedWeight?.let {
             viewModel.addWeightEntry(it)
             weightInput = ""
+            focusManager.clearFocus()
+            keyboardController?.hide()
         }
     }
 
