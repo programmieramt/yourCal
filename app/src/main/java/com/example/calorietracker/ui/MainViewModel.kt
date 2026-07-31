@@ -58,6 +58,14 @@ data class DayEntries(
     val netCalories: Int get() = foodCalories - exerciseCalories
 }
 
+/** Ein Kalenderwochen-Punkt (Montag-Start) für den Historie-Trend — unabhängig vom rollierenden Wochenziel-Fenster. */
+data class WeeklyPoint(
+    val weekStart: Long,
+    val label: String,
+    val netCalories: Int,
+    val avgWeightKg: Double?,
+)
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     val settingsStore = SettingsStore(application)
     private val repository = FoodRepository(AppDatabase.getInstance(application), settingsStore)
@@ -144,11 +152,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         else -> dayHeaderFormat.format(Date(dayStart))
     }
 
-    /** Einträge der letzten 7 Tage, nach Tag gruppiert (neuester Tag zuerst). */
-    val entriesByDay: StateFlow<List<DayEntries>> = combine(weekEntries, exerciseEntries) { entries, exercise ->
-        val foodByDay = entries.groupBy { dayStartOf(it.timestamp) }
+    private fun groupByDay(food: List<FoodEntry>, exercise: List<ExerciseEntry>): List<DayEntries> {
+        val foodByDay = food.groupBy { dayStartOf(it.timestamp) }
         val exerciseByDay = exercise.groupBy { dayStartOf(it.timestamp) }
-        (foodByDay.keys + exerciseByDay.keys)
+        return (foodByDay.keys + exerciseByDay.keys)
             .sortedDescending()
             .map { dayStart ->
                 val dayFood = foodByDay[dayStart].orEmpty()
@@ -160,6 +167,59 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     exerciseCalories = dayExercise.sumOf { it.caloriesBurned },
                     entries = dayFood,
                     exerciseEntries = dayExercise,
+                )
+            }
+    }
+
+    /** Einträge der letzten 7 Tage, nach Tag gruppiert (neuester Tag zuerst). */
+    val entriesByDay: StateFlow<List<DayEntries>> = combine(weekEntries, exerciseEntries) { entries, exercise ->
+        groupByDay(entries, exercise)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Alle jemals erfassten Einträge, nach Tag gruppiert (neuester Tag zuerst) — für die Historie. */
+    val historyByDay: StateFlow<List<DayEntries>> = combine(
+        repository.observeAllEntries(),
+        repository.observeAllExercise(),
+    ) { entries, exercise ->
+        groupByDay(entries, exercise)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val weekLabelFormat = SimpleDateFormat("dd.MM.", Locale.GERMAN)
+
+    /** Montag 00:00 der Kalenderwoche, in der [timestamp] liegt. */
+    private fun mondayStartOf(timestamp: Long): Long {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = timestamp
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK) // SUNDAY=1 .. SATURDAY=7
+        val daysSinceMonday = (dayOfWeek - Calendar.MONDAY + 7) % 7
+        cal.add(Calendar.DAY_OF_YEAR, -daysSinceMonday)
+        return cal.timeInMillis
+    }
+
+    /** Netto-Kalorien und Ø-Gewicht pro Kalenderwoche, älteste zuerst — für den Historie-Trend. */
+    val weeklyTrend: StateFlow<List<WeeklyPoint>> = combine(
+        repository.observeAllEntries(),
+        repository.observeAllExercise(),
+        repository.observeWeightEntries(),
+    ) { entries, exercise, weights ->
+        val foodByWeek = entries.groupBy { mondayStartOf(it.timestamp) }
+        val exerciseByWeek = exercise.groupBy { mondayStartOf(it.timestamp) }
+        val weightByWeek = weights.groupBy { mondayStartOf(it.timestamp) }
+        (foodByWeek.keys + exerciseByWeek.keys + weightByWeek.keys)
+            .sorted()
+            .map { weekStart ->
+                val weekFood = foodByWeek[weekStart].orEmpty().sumOf { it.calories }
+                val weekBurned = exerciseByWeek[weekStart].orEmpty().sumOf { it.caloriesBurned }
+                val weekWeights = weightByWeek[weekStart].orEmpty()
+                WeeklyPoint(
+                    weekStart = weekStart,
+                    label = weekLabelFormat.format(Date(weekStart)),
+                    netCalories = weekFood - weekBurned,
+                    avgWeightKg = if (weekWeights.isEmpty()) null else weekWeights.map { it.weightKg }.average(),
                 )
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

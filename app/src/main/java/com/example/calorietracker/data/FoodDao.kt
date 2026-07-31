@@ -20,4 +20,7 @@ interface FoodDao {
 
     @Query("SELECT * FROM food_entries WHERE timestamp >= :since ORDER BY timestamp DESC")
     fun observeSince(since: Long): Flow<List<FoodEntry>>
+
+    @Query("SELECT * FROM food_entries ORDER BY timestamp DESC")
+    fun observeAll(): Flow<List<FoodEntry>>
 }

@@ -19,6 +19,8 @@ class FoodRepository(
     fun observeEntriesSince(since: Long): Flow<List<FoodEntry>> =
         database.foodDao().observeSince(since)
 
+    fun observeAllEntries(): Flow<List<FoodEntry>> = database.foodDao().observeAll()
+
     suspend fun addEntry(description: String): FoodEntry = withContext(Dispatchers.IO) {
         val apiKey = settingsStore.apiKey
             ?: throw ClaudeApiException("Kein API-Key hinterlegt. Bitte in den Einstellungen eintragen.")
@@ -89,6 +91,8 @@ class FoodRepository(
 
     fun observeExerciseSince(since: Long): Flow<List<ExerciseEntry>> =
         database.exerciseDao().observeSince(since)
+
+    fun observeAllExercise(): Flow<List<ExerciseEntry>> = database.exerciseDao().observeAll()
 
     suspend fun addExerciseEntry(caloriesBurned: Int): ExerciseEntry =
         withContext(Dispatchers.IO) {

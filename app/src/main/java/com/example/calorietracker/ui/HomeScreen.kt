@@ -28,7 +28,6 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -81,7 +80,6 @@ import java.util.Locale
 fun HomeScreen(
     viewModel: MainViewModel,
     onOpenSettings: () -> Unit,
-    onOpenWeight: () -> Unit,
 ) {
     val summary by viewModel.weekSummary.collectAsState()
     val dailyCalories by viewModel.dailyCalories.collectAsState()
@@ -118,9 +116,6 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("Kalorien Tracker") },
                 actions = {
-                    IconButton(onClick = onOpenWeight) {
-                        Icon(Icons.Filled.MonitorWeight, contentDescription = "Gewichtsverlauf")
-                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Filled.Settings, contentDescription = "Einstellungen")
                     }
@@ -445,7 +440,7 @@ private fun MacroChip(label: String, grams: Double) {
 }
 
 @Composable
-private fun DayHeader(day: DayEntries) {
+fun DayHeader(day: DayEntries) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -475,7 +470,7 @@ private fun DayHeader(day: DayEntries) {
 private val timeFormat = SimpleDateFormat("EEE HH:mm", Locale.GERMAN)
 
 @Composable
-private fun FoodEntryRow(
+fun FoodEntryRow(
     entry: FoodEntry,
     onDelete: () -> Unit,
     onEdit: () -> Unit,
@@ -509,7 +504,7 @@ private fun FoodEntryRow(
 }
 
 @Composable
-private fun ExerciseEntryRow(entry: ExerciseEntry, onDelete: () -> Unit) {
+fun ExerciseEntryRow(entry: ExerciseEntry, onDelete: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -564,7 +559,7 @@ private fun FavoriteChip(
 }
 
 @Composable
-private fun EditEntryDialog(
+fun EditEntryDialog(
     entry: FoodEntry,
     onDismiss: () -> Unit,
     onSave: (FoodEntry) -> Unit,

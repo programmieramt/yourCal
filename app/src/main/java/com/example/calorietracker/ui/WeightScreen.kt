@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,10 +51,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WeightScreen(
-    viewModel: MainViewModel,
-    onBack: () -> Unit,
-) {
+fun WeightScreen(viewModel: MainViewModel) {
     val weightEntries by viewModel.weightEntries.collectAsState()
     var weightInput by rememberSaveable { mutableStateOf("") }
     val parsedWeight = weightInput.replace(",", ".").toDoubleOrNull()
@@ -72,14 +68,7 @@ fun WeightScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Gewichtsverlauf") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Zurück")
-                    }
-                },
-            )
+            TopAppBar(title = { Text("Gewichtsverlauf") })
         },
     ) { padding ->
         Column(

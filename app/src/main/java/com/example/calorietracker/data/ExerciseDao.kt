@@ -16,4 +16,7 @@ interface ExerciseDao {
 
     @Query("SELECT * FROM exercise_entries WHERE timestamp >= :since ORDER BY timestamp DESC")
     fun observeSince(since: Long): Flow<List<ExerciseEntry>>
+
+    @Query("SELECT * FROM exercise_entries ORDER BY timestamp DESC")
+    fun observeAll(): Flow<List<ExerciseEntry>>
 }
