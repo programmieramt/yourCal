@@ -92,6 +92,7 @@ fun HomeScreen(
     val dayOptions = remember { viewModel.planDayOptions() }
     var selectedDayStart by rememberSaveable { mutableStateOf(dayOptions.first().dayStart) }
     var description by rememberSaveable { mutableStateOf("") }
+    var selectedFavorite by remember { mutableStateOf<FavoriteEntry?>(null) }
     var exerciseCaloriesInput by rememberSaveable { mutableStateOf("") }
     var editingEntry by remember { mutableStateOf<FoodEntry?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -133,7 +134,14 @@ fun HomeScreen(
             val text = description
             if (text.isNotBlank() && !isLoading) {
                 description = ""
-                viewModel.addEntry(text, selectedDayStart)
+                val favorite = selectedFavorite
+                selectedFavorite = null
+                if (favorite != null && favorite.description == text) {
+                    // Unverändert übernommen — gespeicherte Werte nutzen, kein erneuter Claude-Call.
+                    viewModel.addFromFavorite(favorite, selectedDayStart)
+                } else {
+                    viewModel.addEntry(text, selectedDayStart)
+                }
                 focusManager.clearFocus()
                 keyboardController?.hide()
             }
@@ -211,7 +219,10 @@ fun HomeScreen(
                             items(favorites, key = { it.id }) { favorite ->
                                 FavoriteChip(
                                     favorite = favorite,
-                                    onClick = { viewModel.addFromFavorite(favorite, selectedDayStart) },
+                                    onClick = {
+                                        description = favorite.description
+                                        selectedFavorite = favorite
+                                    },
                                     onRemove = { viewModel.removeFavorite(favorite) },
                                 )
                             }
@@ -226,7 +237,12 @@ fun HomeScreen(
 
                     OutlinedTextField(
                         value = description,
-                        onValueChange = { description = it },
+                        onValueChange = {
+                            description = it
+                            if (selectedFavorite != null && it != selectedFavorite?.description) {
+                                selectedFavorite = null
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("Was hast du gegessen?") },
                         placeholder = { Text("z.B. 150g Reis mit Kikkoman Sushi-Sauce") },
