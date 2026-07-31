@@ -234,7 +234,7 @@ fun HomeScreen(
 
             entriesByDay.forEach { day ->
                 item(key = "header_${day.dayStart}") {
-                    DayHeader(day = day, dailyTargetCalories = summary.dailyTargetCalories)
+                    DayHeader(day = day)
                 }
                 items(day.entries, key = { it.id }) { entry ->
                     FoodEntryRow(
@@ -290,16 +290,17 @@ private fun WeekProgressCard(summary: WeekSummary) {
 
 /**
  * Gruppierter Balken pro Tag: heller Balken = Tagesziel (Wochenziel / 7),
- * farbiger Balken daneben = tatsächlich gegessene Kalorien an dem Tag.
- * Wird die Zielhöhe überschritten, färbt sich der Balken in der Fehlerfarbe.
+ * dunkler Balken daneben = tatsächlich gegessene Kalorien an dem Tag.
+ * Bewusst eine einzige neutrale Farbe unabhängig davon, ob das Ziel
+ * überschritten wurde — die Balkenhöhe im Vergleich zum Zielbalken zeigt das
+ * schon von selbst, ohne eine Warnfarbe, die vom Erfassen abschreckt.
  */
 @Composable
 private fun WeekBarChart(days: List<DayCalories>, dailyTargetCalories: Int) {
     if (days.isEmpty()) return
 
     val targetColor = MaterialTheme.colorScheme.surfaceVariant
-    val underColor = MaterialTheme.colorScheme.primary
-    val overColor = MaterialTheme.colorScheme.error
+    val actualColor = MaterialTheme.colorScheme.primary
 
     val maxValue = remember(days, dailyTargetCalories) {
         val maxDay = days.maxOf { it.calories }
@@ -329,7 +330,6 @@ private fun WeekBarChart(days: List<DayCalories>, dailyTargetCalories: Int) {
                     size = Size(barWidth, targetHeight),
                     cornerRadius = corner,
                 )
-                val actualColor = if (day.calories > dailyTargetCalories) overColor else underColor
                 drawRoundRect(
                     color = actualColor,
                     topLeft = Offset(groupLeft + sidePadding + barWidth + gap, size.height - actualHeight),
@@ -362,9 +362,7 @@ private fun WeekBarChart(days: List<DayCalories>, dailyTargetCalories: Int) {
         ) {
             LegendItem(color = targetColor, label = "Ziel/Tag")
             Spacer(modifier = Modifier.width(16.dp))
-            LegendItem(color = underColor, label = "gegessen")
-            Spacer(modifier = Modifier.width(16.dp))
-            LegendItem(color = overColor, label = "über Ziel")
+            LegendItem(color = actualColor, label = "Gegessen")
         }
     }
 }
@@ -391,7 +389,7 @@ private fun MacroChip(label: String, grams: Double) {
 }
 
 @Composable
-private fun DayHeader(day: DayEntries, dailyTargetCalories: Int) {
+private fun DayHeader(day: DayEntries) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -408,11 +406,7 @@ private fun DayHeader(day: DayEntries, dailyTargetCalories: Int) {
             "${day.totalCalories} kcal",
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = if (day.totalCalories > dailyTargetCalories) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
