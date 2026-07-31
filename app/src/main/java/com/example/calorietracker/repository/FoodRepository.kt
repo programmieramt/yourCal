@@ -1,6 +1,7 @@
 package com.example.calorietracker.repository
 
 import com.example.calorietracker.data.AppDatabase
+import com.example.calorietracker.data.ExerciseEntry
 import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
 import com.example.calorietracker.data.SettingsStore
@@ -84,5 +85,23 @@ class FoodRepository(
 
     suspend fun deleteWeightEntry(entry: WeightEntry) = withContext(Dispatchers.IO) {
         database.weightDao().delete(entry)
+    }
+
+    fun observeExerciseSince(since: Long): Flow<List<ExerciseEntry>> =
+        database.exerciseDao().observeSince(since)
+
+    suspend fun addExerciseEntry(description: String, caloriesBurned: Int): ExerciseEntry =
+        withContext(Dispatchers.IO) {
+            val entry = ExerciseEntry(
+                timestamp = System.currentTimeMillis(),
+                description = description,
+                caloriesBurned = caloriesBurned,
+            )
+            val id = database.exerciseDao().insert(entry)
+            entry.copy(id = id)
+        }
+
+    suspend fun deleteExerciseEntry(entry: ExerciseEntry) = withContext(Dispatchers.IO) {
+        database.exerciseDao().delete(entry)
     }
 }

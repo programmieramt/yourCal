@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calorietracker.data.AppDatabase
+import com.example.calorietracker.data.ExerciseEntry
 import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
 import com.example.calorietracker.data.SettingsStore
@@ -26,14 +27,17 @@ private const val DAY_MILLIS = 24 * 60 * 60 * 1000L
 
 data class WeekSummary(
     val totalCalories: Int = 0,
+    val totalExerciseCalories: Int = 0,
     val totalProteinG: Double = 0.0,
     val totalCarbsG: Double = 0.0,
     val totalFatG: Double = 0.0,
     val goalCalories: Int = com.example.calorietracker.data.DEFAULT_WEEKLY_GOAL_CALORIES,
 ) {
-    val remainingCalories: Int get() = goalCalories - totalCalories
+    /** Gegessen minus durch Sport verbrannt — das zählt fürs Wochenziel. */
+    val netCalories: Int get() = totalCalories - totalExerciseCalories
+    val remainingCalories: Int get() = goalCalories - netCalories
     val progress: Float
-        get() = if (goalCalories <= 0) 0f else (totalCalories.toFloat() / goalCalories).coerceIn(0f, 1.5f)
+        get() = if (goalCalories <= 0) 0f else (netCalories.toFloat() / goalCalories).coerceIn(0f, 1.5f)
     val dailyTargetCalories: Int get() = goalCalories / 7
 }
 
@@ -46,9 +50,13 @@ data class DayCalories(
 data class DayEntries(
     val dayStart: Long,
     val label: String,
-    val totalCalories: Int,
+    val foodCalories: Int,
+    val exerciseCalories: Int,
     val entries: List<FoodEntry>,
-)
+    val exerciseEntries: List<ExerciseEntry>,
+) {
+    val netCalories: Int get() = foodCalories - exerciseCalories
+}
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     val settingsStore = SettingsStore(application)
@@ -78,12 +86,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .observeEntriesSince(startOfRollingWeek())
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val exerciseEntries: StateFlow<List<ExerciseEntry>> = repository
+        .observeExerciseSince(startOfRollingWeek())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val weekSummary: StateFlow<WeekSummary> = combine(
         weekEntries,
+        exerciseEntries,
         settingsStore.weeklyGoalFlow,
-    ) { entries, goal ->
+    ) { entries, exercise, goal ->
         WeekSummary(
             totalCalories = entries.sumOf { it.calories },
+            totalExerciseCalories = exercise.sumOf { it.caloriesBurned },
             totalProteinG = entries.sumOf { it.proteinG },
             totalCarbsG = entries.sumOf { it.carbsG },
             totalFatG = entries.sumOf { it.fatG },
@@ -94,17 +108,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val dayLabelFormat = SimpleDateFormat("EEE", Locale.GERMAN)
     private val dayHeaderFormat = SimpleDateFormat("EEEE, dd.MM.", Locale.GERMAN)
 
-    /** Kalorien pro Tag im rollierenden 7-Tage-Fenster, älteste zuerst. */
-    val dailyCalories: StateFlow<List<DayCalories>> = weekEntries.map { entries ->
+    /** Mitternacht des Tages, an dem [timestamp] liegt. */
+    private fun dayStartOf(timestamp: Long): Long {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = timestamp
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    /** Netto-Kalorien (gegessen minus Sport) pro Tag im rollierenden 7-Tage-Fenster, älteste zuerst. */
+    val dailyCalories: StateFlow<List<DayCalories>> = combine(weekEntries, exerciseEntries) { entries, exercise ->
         (6 downTo 0).map { daysAgo ->
             val dayStart = startOfDay(daysAgo)
             val dayEnd = dayStart + DAY_MILLIS
-            val calories = entries
+            val food = entries
                 .filter { it.timestamp in dayStart until dayEnd }
                 .sumOf { it.calories }
+            val burned = exercise
+                .filter { it.timestamp in dayStart until dayEnd }
+                .sumOf { it.caloriesBurned }
             DayCalories(
                 label = dayLabelFormat.format(Date(dayStart)),
-                calories = calories,
+                calories = food - burned,
                 isToday = daysAgo == 0,
             )
         }
@@ -117,24 +145,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Einträge der letzten 7 Tage, nach Tag gruppiert (neuester Tag zuerst). */
-    val entriesByDay: StateFlow<List<DayEntries>> = weekEntries.map { entries ->
-        entries
-            .groupBy { entry ->
-                val cal = Calendar.getInstance()
-                cal.timeInMillis = entry.timestamp
-                cal.set(Calendar.HOUR_OF_DAY, 0)
-                cal.set(Calendar.MINUTE, 0)
-                cal.set(Calendar.SECOND, 0)
-                cal.set(Calendar.MILLISECOND, 0)
-                cal.timeInMillis
-            }
-            .toSortedMap(compareByDescending { it })
-            .map { (dayStart, dayEntries) ->
+    val entriesByDay: StateFlow<List<DayEntries>> = combine(weekEntries, exerciseEntries) { entries, exercise ->
+        val foodByDay = entries.groupBy { dayStartOf(it.timestamp) }
+        val exerciseByDay = exercise.groupBy { dayStartOf(it.timestamp) }
+        (foodByDay.keys + exerciseByDay.keys)
+            .sortedDescending()
+            .map { dayStart ->
+                val dayFood = foodByDay[dayStart].orEmpty()
+                val dayExercise = exerciseByDay[dayStart].orEmpty()
                 DayEntries(
                     dayStart = dayStart,
                     label = dayHeaderLabel(dayStart),
-                    totalCalories = dayEntries.sumOf { it.calories },
-                    entries = dayEntries,
+                    foodCalories = dayFood.sumOf { it.calories },
+                    exerciseCalories = dayExercise.sumOf { it.caloriesBurned },
+                    entries = dayFood,
+                    exerciseEntries = dayExercise,
                 )
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -198,5 +223,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteWeightEntry(entry: WeightEntry) {
         viewModelScope.launch { repository.deleteWeightEntry(entry) }
+    }
+
+    fun addExerciseEntry(description: String, caloriesBurned: Int) {
+        if (caloriesBurned <= 0) return
+        viewModelScope.launch { repository.addExerciseEntry(description.trim(), caloriesBurned) }
+    }
+
+    fun deleteExerciseEntry(entry: ExerciseEntry) {
+        viewModelScope.launch { repository.deleteExerciseEntry(entry) }
     }
 }
