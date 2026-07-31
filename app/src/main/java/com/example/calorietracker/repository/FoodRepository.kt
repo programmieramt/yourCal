@@ -90,11 +90,10 @@ class FoodRepository(
     fun observeExerciseSince(since: Long): Flow<List<ExerciseEntry>> =
         database.exerciseDao().observeSince(since)
 
-    suspend fun addExerciseEntry(description: String, caloriesBurned: Int): ExerciseEntry =
+    suspend fun addExerciseEntry(caloriesBurned: Int): ExerciseEntry =
         withContext(Dispatchers.IO) {
             val entry = ExerciseEntry(
                 timestamp = System.currentTimeMillis(),
-                description = description,
                 caloriesBurned = caloriesBurned,
             )
             val id = database.exerciseDao().insert(entry)

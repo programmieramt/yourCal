@@ -225,9 +225,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.deleteWeightEntry(entry) }
     }
 
-    fun addExerciseEntry(description: String, caloriesBurned: Int) {
+    fun addExerciseEntry(caloriesBurned: Int) {
         if (caloriesBurned <= 0) return
-        viewModelScope.launch { repository.addExerciseEntry(description.trim(), caloriesBurned) }
+        viewModelScope.launch { repository.addExerciseEntry(caloriesBurned) }
     }
 
     fun deleteExerciseEntry(entry: ExerciseEntry) {

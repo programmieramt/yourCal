@@ -91,7 +91,6 @@ fun HomeScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
 
     var description by rememberSaveable { mutableStateOf("") }
-    var exerciseDescription by rememberSaveable { mutableStateOf("") }
     var exerciseCaloriesInput by rememberSaveable { mutableStateOf("") }
     var editingEntry by remember { mutableStateOf<FoodEntry?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -145,8 +144,7 @@ fun HomeScreen(
         val submitExercise: () -> Unit = {
             val calories = parsedExerciseCalories
             if (calories != null && calories > 0) {
-                viewModel.addExerciseEntry(exerciseDescription, calories)
-                exerciseDescription = ""
+                viewModel.addExerciseEntry(calories)
                 exerciseCaloriesInput = ""
                 focusManager.clearFocus()
                 keyboardController?.hide()
@@ -186,15 +184,6 @@ fun HomeScreen(
                         "Sport",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = exerciseDescription,
-                        onValueChange = { exerciseDescription = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("Aktivität (optional)") },
-                        placeholder = { Text("z.B. Lauf 10km") },
-                        singleLine = true,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -535,7 +524,7 @@ private fun ExerciseEntryRow(entry: ExerciseEntry, onDelete: () -> Unit) {
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(entry.description.ifBlank { "Sport" }, style = MaterialTheme.typography.bodyLarge)
+            Text("Sport", style = MaterialTheme.typography.bodyLarge)
             Text(
                 "-${entry.caloriesBurned} kcal · ${timeFormat.format(Date(entry.timestamp))}",
                 style = MaterialTheme.typography.bodySmall,

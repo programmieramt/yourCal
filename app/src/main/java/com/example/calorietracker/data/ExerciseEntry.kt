@@ -7,6 +7,5 @@ import androidx.room.PrimaryKey
 data class ExerciseEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val timestamp: Long,
-    val description: String,
     val caloriesBurned: Int,
 )
