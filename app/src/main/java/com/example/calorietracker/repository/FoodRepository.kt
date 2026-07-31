@@ -21,13 +21,13 @@ class FoodRepository(
 
     fun observeAllEntries(): Flow<List<FoodEntry>> = database.foodDao().observeAll()
 
-    suspend fun addEntry(description: String): FoodEntry = withContext(Dispatchers.IO) {
+    suspend fun addEntry(description: String, timestamp: Long): FoodEntry = withContext(Dispatchers.IO) {
         val apiKey = settingsStore.apiKey
             ?: throw ClaudeApiException("Kein API-Key hinterlegt. Bitte in den Einstellungen eintragen.")
 
         val estimate = ClaudeApi.estimate(apiKey, description)
         val entry = FoodEntry(
-            timestamp = System.currentTimeMillis(),
+            timestamp = timestamp,
             description = description,
             calories = estimate.calories,
             proteinG = estimate.proteinG,

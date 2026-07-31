@@ -35,6 +35,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -88,6 +89,8 @@ fun HomeScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
 
+    val dayOptions = remember { viewModel.planDayOptions() }
+    var selectedDayStart by rememberSaveable { mutableStateOf(dayOptions.first().dayStart) }
     var description by rememberSaveable { mutableStateOf("") }
     var exerciseCaloriesInput by rememberSaveable { mutableStateOf("") }
     var editingEntry by remember { mutableStateOf<FoodEntry?>(null) }
@@ -130,7 +133,7 @@ fun HomeScreen(
             val text = description
             if (text.isNotBlank() && !isLoading) {
                 description = ""
-                viewModel.addEntry(text)
+                viewModel.addEntry(text, selectedDayStart)
                 focusManager.clearFocus()
                 keyboardController?.hide()
             }
@@ -231,6 +234,23 @@ fun HomeScreen(
             item {
                 Column {
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        "Für welchen Tag?",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(dayOptions, key = { it.dayStart }) { option ->
+                            FilterChip(
+                                selected = selectedDayStart == option.dayStart,
+                                onClick = { selectedDayStart = option.dayStart },
+                                label = { Text(option.label) },
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     OutlinedTextField(
                         value = description,
@@ -485,7 +505,11 @@ fun FoodEntryRow(
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(entry.description, style = MaterialTheme.typography.bodyLarge)
+            val isPlanned = entry.timestamp > System.currentTimeMillis()
+            Text(
+                if (isPlanned) "${entry.description} · geplant" else entry.description,
+                style = MaterialTheme.typography.bodyLarge,
+            )
             Text(
                 "${entry.calories} kcal · P ${entry.proteinG.toInt()}g · " +
                     "KH ${entry.carbsG.toInt()}g · F ${entry.fatG.toInt()}g · " +

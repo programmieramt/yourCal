@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 private const val DAY_MILLIS = 24 * 60 * 60 * 1000L
+private const val NOON_OFFSET_MILLIS = 12 * 60 * 60 * 1000L
 
 data class WeekSummary(
     val totalCalories: Int = 0,
@@ -66,6 +67,12 @@ data class WeeklyPoint(
     val avgWeightKg: Double?,
 )
 
+/** Ein wählbarer Tag für die Essensplanung: heute oder einer der nächsten 6 Tage. */
+data class PlanDayOption(
+    val dayStart: Long,
+    val label: String,
+)
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     val settingsStore = SettingsStore(application)
     private val repository = FoodRepository(AppDatabase.getInstance(application), settingsStore)
@@ -103,12 +110,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         exerciseEntries,
         settingsStore.weeklyGoalFlow,
     ) { entries, exercise, goal ->
+        // Für zukünftige Tage vorgeplante Einträge zählen erst mit, wenn ihr Tag
+        // wirklich erreicht ist — sonst würde die Bilanz Dinge zeigen, die noch
+        // gar nicht gegessen wurden.
+        val consumed = entries.filter { it.timestamp <= System.currentTimeMillis() }
         WeekSummary(
-            totalCalories = entries.sumOf { it.calories },
+            totalCalories = consumed.sumOf { it.calories },
             totalExerciseCalories = exercise.sumOf { it.caloriesBurned },
-            totalProteinG = entries.sumOf { it.proteinG },
-            totalCarbsG = entries.sumOf { it.carbsG },
-            totalFatG = entries.sumOf { it.fatG },
+            totalProteinG = consumed.sumOf { it.proteinG },
+            totalCarbsG = consumed.sumOf { it.carbsG },
+            totalFatG = consumed.sumOf { it.fatG },
             goalCalories = goal,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WeekSummary())
@@ -206,7 +217,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.observeAllExercise(),
         repository.observeWeightEntries(),
     ) { entries, exercise, weights ->
-        val foodByWeek = entries.groupBy { mondayStartOf(it.timestamp) }
+        val consumed = entries.filter { it.timestamp <= System.currentTimeMillis() }
+        val foodByWeek = consumed.groupBy { mondayStartOf(it.timestamp) }
         val exerciseByWeek = exercise.groupBy { mondayStartOf(it.timestamp) }
         val weightByWeek = weights.groupBy { mondayStartOf(it.timestamp) }
         (foodByWeek.keys + exerciseByWeek.keys + weightByWeek.keys)
@@ -224,13 +236,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addEntry(description: String) {
+    /** Heute plus die nächsten 6 Tage, zur Auswahl beim Essen-Planen. */
+    fun planDayOptions(): List<PlanDayOption> = (0..6).map { daysAhead ->
+        // startOfDay() zählt Tage zurück; ein negatives Argument zählt entsprechend vorwärts.
+        val dayStart = startOfDay(-daysAhead)
+        PlanDayOption(
+            dayStart = dayStart,
+            label = if (daysAhead == 0) "Heute" else dayLabelFormat.format(Date(dayStart)),
+        )
+    }
+
+    /** "Jetzt" für heute, sonst Mittag des geplanten Tages (es ist ja noch nichts passiert). */
+    private fun timestampFor(targetDayStart: Long): Long =
+        if (targetDayStart == startOfDay(0)) System.currentTimeMillis() else targetDayStart + NOON_OFFSET_MILLIS
+
+    fun addEntry(description: String, targetDayStart: Long = startOfDay(0)) {
         if (description.isBlank()) return
+        val timestamp = timestampFor(targetDayStart)
         viewModelScope.launch {
             _isLoading.value = true
             _errorMessage.value = null
             try {
-                repository.addEntry(description.trim())
+                repository.addEntry(description.trim(), timestamp)
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "Unbekannter Fehler"
             } finally {
