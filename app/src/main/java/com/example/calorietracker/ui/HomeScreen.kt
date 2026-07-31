@@ -178,31 +178,20 @@ fun HomeScreen(
             item {
                 Column {
                     Spacer(modifier = Modifier.height(16.dp))
+
                     Text(
-                        "Sport",
-                        style = MaterialTheme.typography.titleMedium,
+                        "Für welchen Tag?",
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = exerciseCaloriesInput,
-                            onValueChange = { exerciseCaloriesInput = it },
-                            label = { Text("Verbrannte kcal") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
-                                imeAction = ImeAction.Send,
-                            ),
-                            keyboardActions = KeyboardActions(onSend = { submitExercise() }),
-                            modifier = Modifier.weight(1f),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = submitExercise,
-                            enabled = parsedExerciseCalories != null && parsedExerciseCalories > 0,
-                        ) {
-                            Text("Eintragen")
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(dayOptions, key = { it.dayStart }) { option ->
+                            FilterChip(
+                                selected = selectedDayStart == option.dayStart,
+                                onClick = { selectedDayStart = option.dayStart },
+                                label = { Text(option.label) },
+                            )
                         }
                     }
                 }
@@ -222,7 +211,7 @@ fun HomeScreen(
                             items(favorites, key = { it.id }) { favorite ->
                                 FavoriteChip(
                                     favorite = favorite,
-                                    onClick = { viewModel.addFromFavorite(favorite) },
+                                    onClick = { viewModel.addFromFavorite(favorite, selectedDayStart) },
                                     onRemove = { viewModel.removeFavorite(favorite) },
                                 )
                             }
@@ -234,23 +223,6 @@ fun HomeScreen(
             item {
                 Column {
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        "Für welchen Tag?",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(dayOptions, key = { it.dayStart }) { option ->
-                            FilterChip(
-                                selected = selectedDayStart == option.dayStart,
-                                onClick = { selectedDayStart = option.dayStart },
-                                label = { Text(option.label) },
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
 
                     OutlinedTextField(
                         value = description,
@@ -277,6 +249,39 @@ fun HomeScreen(
                             )
                         } else {
                             Text("Hinzufügen")
+                        }
+                    }
+                }
+            }
+
+            item {
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "Sport",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = exerciseCaloriesInput,
+                            onValueChange = { exerciseCaloriesInput = it },
+                            label = { Text("Verbrannte kcal") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Number,
+                                imeAction = ImeAction.Send,
+                            ),
+                            keyboardActions = KeyboardActions(onSend = { submitExercise() }),
+                            modifier = Modifier.weight(1f),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = submitExercise,
+                            enabled = parsedExerciseCalories != null && parsedExerciseCalories > 0,
+                        ) {
+                            Text("Eintragen")
                         }
                     }
 

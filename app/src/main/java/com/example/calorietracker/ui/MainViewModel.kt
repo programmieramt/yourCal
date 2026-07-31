@@ -290,10 +290,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.removeFavorite(favorite) }
     }
 
-    fun addFromFavorite(favorite: FavoriteEntry) {
+    fun addFromFavorite(favorite: FavoriteEntry, targetDayStart: Long = startOfDay(0)) {
+        val timestamp = timestampFor(targetDayStart)
         viewModelScope.launch {
             try {
-                repository.addEntryFromFavorite(favorite)
+                repository.addEntryFromFavorite(favorite, timestamp)
             } catch (e: Exception) {
                 _errorMessage.value = e.message ?: "Unbekannter Fehler"
             }

@@ -64,9 +64,9 @@ class FoodRepository(
         database.favoriteDao().delete(favorite)
     }
 
-    suspend fun addEntryFromFavorite(favorite: FavoriteEntry): FoodEntry = withContext(Dispatchers.IO) {
+    suspend fun addEntryFromFavorite(favorite: FavoriteEntry, timestamp: Long): FoodEntry = withContext(Dispatchers.IO) {
         val entry = FoodEntry(
-            timestamp = System.currentTimeMillis(),
+            timestamp = timestamp,
             description = favorite.description,
             calories = favorite.calories,
             proteinG = favorite.proteinG,
