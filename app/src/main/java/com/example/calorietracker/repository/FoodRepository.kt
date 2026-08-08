@@ -46,6 +46,13 @@ class FoodRepository(
         database.foodDao().delete(entry)
     }
 
+    /** Legt eine Kopie von [entry] mit neuem Zeitstempel an — gleiche Werte, kein Claude-Call. */
+    suspend fun repeatEntry(entry: FoodEntry, timestamp: Long): FoodEntry = withContext(Dispatchers.IO) {
+        val copy = entry.copy(id = 0, timestamp = timestamp)
+        val id = database.foodDao().insert(copy)
+        copy.copy(id = id)
+    }
+
     fun observeFavorites(): Flow<List<FavoriteEntry>> = database.favoriteDao().observeAll()
 
     suspend fun addFavorite(entry: FoodEntry) = withContext(Dispatchers.IO) {

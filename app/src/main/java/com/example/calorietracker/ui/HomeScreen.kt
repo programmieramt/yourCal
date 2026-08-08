@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -328,6 +329,7 @@ fun HomeScreen(
                         onDelete = { viewModel.deleteEntry(entry) },
                         onEdit = { editingEntry = entry },
                         onFavorite = { viewModel.addFavorite(entry) },
+                        onRepeat = { viewModel.repeatEntry(entry) },
                     )
                     HorizontalDivider()
                 }
@@ -516,6 +518,7 @@ fun FoodEntryRow(
     onDelete: () -> Unit,
     onEdit: () -> Unit,
     onFavorite: () -> Unit,
+    onRepeat: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -538,6 +541,9 @@ fun FoodEntryRow(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        IconButton(onClick = onRepeat) {
+            Icon(Icons.Filled.Repeat, contentDescription = "Erneut hinzufügen")
         }
         IconButton(onClick = onFavorite) {
             Icon(Icons.Filled.Star, contentDescription = "Als Favorit speichern")

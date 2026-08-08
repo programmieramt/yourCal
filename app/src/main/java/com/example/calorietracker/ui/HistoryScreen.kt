@@ -114,6 +114,7 @@ fun HistoryScreen(viewModel: MainViewModel) {
                         onDelete = { viewModel.deleteEntry(entry) },
                         onEdit = { editingEntry = entry },
                         onFavorite = { viewModel.addFavorite(entry) },
+                        onRepeat = { viewModel.repeatEntry(entry) },
                     )
                     HorizontalDivider()
                 }

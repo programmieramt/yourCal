@@ -274,6 +274,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.deleteEntry(entry) }
     }
 
+    fun repeatEntry(entry: FoodEntry) {
+        viewModelScope.launch {
+            try {
+                repository.repeatEntry(entry, System.currentTimeMillis())
+            } catch (e: Exception) {
+                _errorMessage.value = e.message ?: "Unbekannter Fehler"
+            }
+        }
+    }
+
     fun clearError() {
         _errorMessage.value = null
     }
