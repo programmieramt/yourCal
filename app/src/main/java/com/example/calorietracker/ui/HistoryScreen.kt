@@ -102,7 +102,7 @@ fun HistoryScreen(viewModel: MainViewModel) {
 
             historyByDay.forEach { day ->
                 item(key = "header_${day.dayStart}") {
-                    DayHeader(day = day)
+                    DayHeader(day = day, dailyTargetCalories = weeklyGoal / 7)
                 }
                 items(day.exerciseEntries, key = { "ex_${it.id}" }) { entry ->
                     ExerciseEntryRow(entry = entry, onDelete = { viewModel.deleteExerciseEntry(entry) })

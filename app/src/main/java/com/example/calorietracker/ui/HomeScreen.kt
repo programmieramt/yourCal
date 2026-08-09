@@ -168,26 +168,9 @@ fun HomeScreen(
                 .padding(16.dp)
                 .imePadding(),
         ) {
+            // 1. Kalorienerfassung
             item {
                 Column {
-                    WeekProgressCard(summary)
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Text(
-                        "Tagesverteilung",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    WeekBarChart(days = dailyCalories, dailyTargetCalories = summary.dailyTargetCalories)
-                }
-            }
-
-            item {
-                Column {
-                    Spacer(modifier = Modifier.height(16.dp))
-
                     Text(
                         "Für welchen Tag?",
                         style = MaterialTheme.typography.titleSmall,
@@ -271,6 +254,7 @@ fun HomeScreen(
                 }
             }
 
+            // 2. Verbrannte Kalorien
             item {
                 Column {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -301,6 +285,24 @@ fun HomeScreen(
                             Text("Eintragen")
                         }
                     }
+                }
+            }
+
+            // 3. Wochenkalorien
+            item {
+                Column {
+                    Spacer(modifier = Modifier.height(20.dp))
+                    WeekProgressCard(summary)
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Text(
+                        "Tagesverteilung",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    WeekBarChart(days = dailyCalories, dailyTargetCalories = summary.dailyTargetCalories)
 
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider()
@@ -315,9 +317,10 @@ fun HomeScreen(
                 }
             }
 
+            // 4. Lebensmittelliste
             entriesByDay.forEach { day ->
                 item(key = "header_${day.dayStart}") {
-                    DayHeader(day = day)
+                    DayHeader(day = day, dailyTargetCalories = summary.dailyTargetCalories)
                 }
                 items(day.exerciseEntries, key = { "ex_${it.id}" }) { entry ->
                     ExerciseEntryRow(entry = entry, onDelete = { viewModel.deleteExerciseEntry(entry) })
@@ -483,7 +486,7 @@ private fun MacroChip(label: String, grams: Double) {
 }
 
 @Composable
-fun DayHeader(day: DayEntries) {
+fun DayHeader(day: DayEntries, dailyTargetCalories: Int) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -496,17 +499,28 @@ fun DayHeader(day: DayEntries) {
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
         )
-        val text = if (day.exerciseCalories > 0) {
-            "${day.netCalories} (${day.foodCalories}-${day.exerciseCalories}) kcal"
-        } else {
-            "${day.netCalories} kcal"
+        Column(horizontalAlignment = Alignment.End) {
+            val text = if (day.exerciseCalories > 0) {
+                "${day.netCalories} (${day.foodCalories}-${day.exerciseCalories}) kcal"
+            } else {
+                "${day.netCalories} kcal"
+            }
+            Text(
+                text,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (day.label == "Heute") {
+                val remaining = dailyTargetCalories - day.netCalories
+                val remainingText = if (remaining >= 0) "$remaining übrig" else "${-remaining} über Ziel"
+                Text(
+                    remainingText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        Text(
-            text,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
