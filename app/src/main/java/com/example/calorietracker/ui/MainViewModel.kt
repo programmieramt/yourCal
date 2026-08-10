@@ -347,4 +347,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         file.writeText(json)
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
+
+    /** Liest eine zuvor exportierte JSON-Datei ein und gibt die Zahl importierter Einträge zurück. */
+    suspend fun importFromUri(uri: Uri): Int = withContext(Dispatchers.IO) {
+        val context = getApplication<Application>()
+        val json = context.contentResolver.openInputStream(uri)?.use { stream ->
+            stream.bufferedReader().readText()
+        } ?: throw IllegalStateException("Datei konnte nicht gelesen werden")
+        repository.importAllData(json)
+    }
 }

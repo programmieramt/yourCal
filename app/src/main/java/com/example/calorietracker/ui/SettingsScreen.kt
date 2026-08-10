@@ -1,6 +1,8 @@
 package com.example.calorietracker.ui
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,8 +19,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -53,8 +58,27 @@ fun SettingsScreen(
     var goalInput by rememberSaveable(currentGoal) { mutableStateOf(currentGoal.toString()) }
     var showApiKey by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
+    var isImporting by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            isImporting = true
+            try {
+                val count = viewModel.importFromUri(uri)
+                snackbarHostState.showSnackbar("$count Einträge importiert.")
+            } catch (e: Exception) {
+                snackbarHostState.showSnackbar("Import fehlgeschlagen: ${e.message}")
+            } finally {
+                isImporting = false
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -67,6 +91,7 @@ fun SettingsScreen(
                 },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -165,6 +190,27 @@ fun SettingsScreen(
                     CircularProgressIndicator(modifier = Modifier.height(20.dp), strokeWidth = 2.dp)
                 } else {
                     Text("Alle Daten exportieren")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Eine zuvor exportierte JSON-Datei wieder einlesen, z.B. nach einem " +
+                    "Geräte-Reset. Bestehende Einträge bleiben erhalten — es wird nichts " +
+                    "gelöscht, doppelte Einträge sind bei erneutem Import möglich.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = { importLauncher.launch(arrayOf("application/json")) },
+                enabled = !isImporting,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (isImporting) {
+                    CircularProgressIndicator(modifier = Modifier.height(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Daten importieren")
                 }
             }
 

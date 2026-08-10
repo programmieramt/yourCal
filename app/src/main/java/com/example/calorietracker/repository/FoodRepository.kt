@@ -180,4 +180,72 @@ class FoodRepository(
         )
         root.toString(2)
     }
+
+    /**
+     * Liest ein Export-JSON zurück ein. IDs aus der Datei werden bewusst
+     * ignoriert (Room vergibt neue) — das ist ein Restore, kein Merge mit
+     * Konflikterkennung; beim Import in eine nicht-leere DB entstehen ggf.
+     * Duplikate.
+     */
+    suspend fun importAllData(json: String): Int = withContext(Dispatchers.IO) {
+        val root = JSONObject(json)
+        var count = 0
+
+        root.optJSONArray("foodEntries")?.let { array ->
+            for (i in 0 until array.length()) {
+                val o = array.getJSONObject(i)
+                database.foodDao().insert(
+                    FoodEntry(
+                        timestamp = o.getLong("timestamp"),
+                        description = o.getString("description"),
+                        calories = o.getInt("calories"),
+                        proteinG = o.getDouble("proteinG"),
+                        carbsG = o.getDouble("carbsG"),
+                        fatG = o.getDouble("fatG"),
+                    ),
+                )
+                count++
+            }
+        }
+        root.optJSONArray("exerciseEntries")?.let { array ->
+            for (i in 0 until array.length()) {
+                val o = array.getJSONObject(i)
+                database.exerciseDao().insert(
+                    ExerciseEntry(
+                        timestamp = o.getLong("timestamp"),
+                        caloriesBurned = o.getInt("caloriesBurned"),
+                    ),
+                )
+                count++
+            }
+        }
+        root.optJSONArray("weightEntries")?.let { array ->
+            for (i in 0 until array.length()) {
+                val o = array.getJSONObject(i)
+                database.weightDao().insert(
+                    WeightEntry(
+                        timestamp = o.getLong("timestamp"),
+                        weightKg = o.getDouble("weightKg"),
+                    ),
+                )
+                count++
+            }
+        }
+        root.optJSONArray("favorites")?.let { array ->
+            for (i in 0 until array.length()) {
+                val o = array.getJSONObject(i)
+                database.favoriteDao().insert(
+                    FavoriteEntry(
+                        description = o.getString("description"),
+                        calories = o.getInt("calories"),
+                        proteinG = o.getDouble("proteinG"),
+                        carbsG = o.getDouble("carbsG"),
+                        fatG = o.getDouble("fatG"),
+                    ),
+                )
+                count++
+            }
+        }
+        count
+    }
 }
