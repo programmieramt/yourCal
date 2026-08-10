@@ -10,7 +10,10 @@ import com.example.calorietracker.network.ClaudeApi
 import com.example.calorietracker.network.ClaudeApiException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
 class FoodRepository(
     private val database: AppDatabase,
@@ -113,5 +116,68 @@ class FoodRepository(
 
     suspend fun deleteExerciseEntry(entry: ExerciseEntry) = withContext(Dispatchers.IO) {
         database.exerciseDao().delete(entry)
+    }
+
+    /** Alle Tabellen als ein JSON-Dokument — für Backup/Export, kein Sync-Format. */
+    suspend fun exportAllData(): String = withContext(Dispatchers.IO) {
+        val food = database.foodDao().observeAll().first()
+        val exercise = database.exerciseDao().observeAll().first()
+        val weight = database.weightDao().observeAll().first()
+        val favorites = database.favoriteDao().observeAll().first()
+
+        val root = JSONObject()
+        root.put("exportedAt", System.currentTimeMillis())
+        root.put(
+            "foodEntries",
+            JSONArray(
+                food.map { e ->
+                    JSONObject()
+                        .put("id", e.id)
+                        .put("timestamp", e.timestamp)
+                        .put("description", e.description)
+                        .put("calories", e.calories)
+                        .put("proteinG", e.proteinG)
+                        .put("carbsG", e.carbsG)
+                        .put("fatG", e.fatG)
+                },
+            ),
+        )
+        root.put(
+            "exerciseEntries",
+            JSONArray(
+                exercise.map { e ->
+                    JSONObject()
+                        .put("id", e.id)
+                        .put("timestamp", e.timestamp)
+                        .put("caloriesBurned", e.caloriesBurned)
+                },
+            ),
+        )
+        root.put(
+            "weightEntries",
+            JSONArray(
+                weight.map { e ->
+                    JSONObject()
+                        .put("id", e.id)
+                        .put("timestamp", e.timestamp)
+                        .put("weightKg", e.weightKg)
+                },
+            ),
+        )
+        root.put(
+            "favorites",
+            JSONArray(
+                favorites.map { e ->
+                    JSONObject()
+                        .put("id", e.id)
+                        .put("description", e.description)
+                        .put("calories", e.calories)
+                        .put("proteinG", e.proteinG)
+                        .put("carbsG", e.carbsG)
+                        .put("fatG", e.fatG)
+                },
+            ),
+        )
+        root.toString(2)
     }
 }

@@ -1,6 +1,8 @@
 package com.example.calorietracker.ui
 
 import android.app.Application
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calorietracker.data.AppDatabase
@@ -10,10 +12,12 @@ import com.example.calorietracker.data.FoodEntry
 import com.example.calorietracker.data.SettingsStore
 import com.example.calorietracker.data.WeightEntry
 import com.example.calorietracker.repository.FoodRepository
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -22,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private const val DAY_MILLIS = 24 * 60 * 60 * 1000L
 private const val NOON_OFFSET_MILLIS = 12 * 60 * 60 * 1000L
@@ -330,5 +335,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteExerciseEntry(entry: ExerciseEntry) {
         viewModelScope.launch { repository.deleteExerciseEntry(entry) }
+    }
+
+    /** Exportiert alle Daten als JSON-Datei im Cache und liefert eine teilbare content://-Uri. */
+    suspend fun exportToFile(): Uri = withContext(Dispatchers.IO) {
+        val json = repository.exportAllData()
+        val context = getApplication<Application>()
+        val exportsDir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmm", Locale.GERMAN).format(Date())
+        val file = File(exportsDir, "calorietracker_export_$timestamp.json")
+        file.writeText(json)
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
 }
