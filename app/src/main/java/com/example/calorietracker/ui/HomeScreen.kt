@@ -59,6 +59,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -82,6 +84,7 @@ import java.util.Locale
 fun HomeScreen(
     viewModel: MainViewModel,
     onOpenSettings: () -> Unit,
+    quickAddTrigger: Int = 0,
 ) {
     val summary by viewModel.weekSummary.collectAsState()
     val dailyCalories by viewModel.dailyCalories.collectAsState()
@@ -97,6 +100,7 @@ fun HomeScreen(
     var exerciseCaloriesInput by rememberSaveable { mutableStateOf("") }
     var editingEntry by remember { mutableStateOf<FoodEntry?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val descriptionFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(errorMessage) {
         errorMessage?.let {
@@ -131,6 +135,16 @@ fun HomeScreen(
     ) { padding ->
         val keyboardController = LocalSoftwareKeyboardController.current
         val focusManager = LocalFocusManager.current
+
+        // Vom Home-Widget per "+" ausgelöst: Eingabefeld direkt fokussieren und
+        // Tastatur einblenden, statt dass man erst manuell reintippen muss.
+        LaunchedEffect(quickAddTrigger) {
+            if (quickAddTrigger > 0) {
+                descriptionFocusRequester.requestFocus()
+                keyboardController?.show()
+            }
+        }
+
         val submitEntry: () -> Unit = {
             val text = description
             if (text.isNotBlank() && !isLoading) {
@@ -227,7 +241,9 @@ fun HomeScreen(
                                 selectedFavorite = null
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(descriptionFocusRequester),
                         label = { Text("Was hast du gegessen?") },
                         placeholder = { Text("z.B. 150g Reis mit Kikkoman Sushi-Sauce") },
                         singleLine = true,

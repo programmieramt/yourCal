@@ -3,6 +3,7 @@ package com.example.calorietracker.ui
 import android.app.Application
 import android.net.Uri
 import androidx.core.content.FileProvider
+import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calorietracker.data.AppDatabase
@@ -12,6 +13,7 @@ import com.example.calorietracker.data.FoodEntry
 import com.example.calorietracker.data.SettingsStore
 import com.example.calorietracker.data.WeightEntry
 import com.example.calorietracker.repository.FoodRepository
+import com.example.calorietracker.widget.CalorieWidget
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -161,6 +163,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Home-Widget aktualisieren, sobald sich die heutige Bilanz ändert — Rooms
+    // Flows lösen bei jedem Insert/Update/Delete/Import automatisch neu aus,
+    // eigene Refresh-Aufrufe an jeder Mutationsstelle sind so nicht nötig.
+    init {
+        viewModelScope.launch {
+            combine(dailyCalories, weekSummary) { _, _ -> Unit }.collect {
+                CalorieWidget().updateAll(application)
+            }
+        }
+    }
 
     private fun dayHeaderLabel(dayStart: Long): String = when (dayStart) {
         startOfDay(0) -> "Heute"

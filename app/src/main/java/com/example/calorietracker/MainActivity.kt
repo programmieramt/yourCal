@@ -1,5 +1,6 @@
 package com.example.calorietracker
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,6 +16,8 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -40,8 +43,14 @@ private val TAB_DESTINATIONS = listOf(
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
+    // Zählt hoch bei jedem "Schnelleingabe"-Tap im Home-Widget — als Schlüssel
+    // für einen LaunchedEffect in HomeScreen, damit auch ein erneuter Tap bei
+    // bereits laufender App (onNewIntent statt onCreate) den Fokus neu auslöst.
+    private var quickAddTrigger by mutableIntStateOf(0)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIntent(intent)
         setContent {
             CalorieTrackerTheme {
                 val navController = rememberNavController()
@@ -80,6 +89,7 @@ class MainActivity : ComponentActivity() {
                             HomeScreen(
                                 viewModel = viewModel,
                                 onOpenSettings = { navController.navigate("settings") },
+                                quickAddTrigger = quickAddTrigger,
                             )
                         }
                         composable("history") {
@@ -98,5 +108,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_QUICK_ADD, false) == true) {
+            quickAddTrigger++
+        }
+    }
+
+    companion object {
+        /** Intent-Extra, mit dem das Home-Widget die Schnelleingabe direkt fokussiert öffnet. */
+        const val EXTRA_QUICK_ADD = "quick_add"
     }
 }
