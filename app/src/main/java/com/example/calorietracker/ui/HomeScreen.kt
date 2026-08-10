@@ -358,7 +358,9 @@ private fun WeekProgressCard(summary: WeekSummary) {
                 headline,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f, fill = false),
             )
+            Spacer(modifier = Modifier.width(8.dp))
             val remainingText = if (summary.remainingCalories >= 0) {
                 "${summary.remainingCalories} übrig"
             } else {
@@ -499,7 +501,7 @@ fun DayHeader(day: DayEntries, dailyTargetCalories: Int) {
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
         )
-        Column(horizontalAlignment = Alignment.End) {
+        Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f, fill = false)) {
             val text = if (day.exerciseCalories > 0) {
                 "${day.netCalories} (${day.foodCalories}-${day.exerciseCalories}) kcal"
             } else {
