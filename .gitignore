@@ -10,3 +10,4 @@ captures/
 .kotlin/
 *.jks
 keystore.jks
+calorietracker_export_*.json
