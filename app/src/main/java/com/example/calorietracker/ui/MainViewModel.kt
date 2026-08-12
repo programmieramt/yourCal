@@ -20,11 +20,14 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -104,12 +107,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Rollierendes 7-Tage-Fenster (heute + 6 Tage zurück, ab Mitternacht). */
     private fun startOfRollingWeek(): Long = startOfDay(6)
 
-    val weekEntries: StateFlow<List<FoodEntry>> = repository
-        .observeEntriesSince(startOfRollingWeek())
+    // Tickt regelmäßig, damit das rollierende Fenster auch ohne neuen Eintrag
+    // aktuell bleibt. Ohne das würde die "since"-Grenze unten nur einmal beim
+    // Erzeugen des ViewModels berechnet und nie wieder aktualisiert — bleibt
+    // die App-Instanz länger am Leben (z.B. weil das Home-Widget die Activity
+    // per singleTop wiederverwendet statt neu zu starten), rutscht das Fenster
+    // dann nicht mehr mit und die Wochensumme zieht stillschweigend zu alte
+    // Tage mit rein, die die Tages-Balken (die ihre Grenzen jedes Mal frisch
+    // bestimmen) schon korrekt rausgefiltert haben.
+    private val rollingWindowTick: Flow<Unit> = flow {
+        while (true) {
+            emit(Unit)
+            delay(5 * 60 * 1000L)
+        }
+    }
+
+    val weekEntries: StateFlow<List<FoodEntry>> = combine(
+        repository.observeAllEntries(),
+        rollingWindowTick,
+    ) { all, _ -> all.filter { it.timestamp >= startOfRollingWeek() } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val exerciseEntries: StateFlow<List<ExerciseEntry>> = repository
-        .observeExerciseSince(startOfRollingWeek())
+    val exerciseEntries: StateFlow<List<ExerciseEntry>> = combine(
+        repository.observeAllExercise(),
+        rollingWindowTick,
+    ) { all, _ -> all.filter { it.timestamp >= startOfRollingWeek() } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val weekSummary: StateFlow<WeekSummary> = combine(
