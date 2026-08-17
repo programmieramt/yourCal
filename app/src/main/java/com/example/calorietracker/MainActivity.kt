@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MonitorWeight
@@ -29,6 +30,7 @@ import com.example.calorietracker.ui.HistoryScreen
 import com.example.calorietracker.ui.HomeScreen
 import com.example.calorietracker.ui.MainViewModel
 import com.example.calorietracker.ui.SettingsScreen
+import com.example.calorietracker.ui.TrainingPlanScreen
 import com.example.calorietracker.ui.WeightScreen
 import com.example.calorietracker.ui.theme.CalorieTrackerTheme
 
@@ -38,6 +40,7 @@ private val TAB_DESTINATIONS = listOf(
     TabDestination("home", "Heute", Icons.Filled.Home),
     TabDestination("history", "Historie", Icons.Filled.History),
     TabDestination("weight", "Gewicht", Icons.Filled.MonitorWeight),
+    TabDestination("plan", "Plan", Icons.Filled.CalendarMonth),
 )
 
 class MainActivity : ComponentActivity() {
@@ -97,6 +100,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("weight") {
                             WeightScreen(viewModel = viewModel)
+                        }
+                        composable("plan") {
+                            TrainingPlanScreen(viewModel = viewModel)
                         }
                         composable("settings") {
                             SettingsScreen(

@@ -147,6 +147,17 @@ fun SettingsScreen(
 
             Text("Wochenziel", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
+            val liveTarget by viewModel.liveCalorieTarget.collectAsState()
+            if (liveTarget != null) {
+                Text(
+                    "Wird gerade automatisch aus dem Trainingsplan berechnet " +
+                        "(${liveTarget!!.targetKcalPerWeek} kcal/Woche) — dieser Wert hier wird solange " +
+                        "ignoriert.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             OutlinedTextField(
                 value = goalInput,
                 onValueChange = { input -> goalInput = input.filter { it.isDigit() } },

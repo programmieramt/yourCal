@@ -10,12 +10,17 @@ import com.example.calorietracker.data.AppDatabase
 import com.example.calorietracker.data.ExerciseEntry
 import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
+import com.example.calorietracker.data.LiveCalorieTarget
+import com.example.calorietracker.data.PlanWeek
 import com.example.calorietracker.data.SettingsStore
+import com.example.calorietracker.data.TrainingPlan
 import com.example.calorietracker.data.WeightEntry
+import com.example.calorietracker.data.calculateLiveTarget
 import com.example.calorietracker.repository.FoodRepository
 import com.example.calorietracker.widget.CalorieWidget
 import java.io.File
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -134,11 +139,44 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) { all, _ -> all.filter { it.timestamp >= startOfRollingWeek() } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /** Statischer Trainings-/Kalorienplan aus assets/training_plan.json, falls vorhanden. */
+    val trainingPlan: TrainingPlan? by lazy { TrainingPlan.loadFromAssets(application) }
+
+    /** Ø-Gewicht der letzten 7 Wiege-Einträge (nicht Kalendertage) — Basis für die Live-Kalorienberechnung. */
+    private val rollingWeightKg: StateFlow<Double?> = repository.observeWeightEntries()
+        .map { entries -> entries.take(7).map { it.weightKg }.takeIf { it.isNotEmpty() }?.average() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /** Die Trainingsplan-Woche, in der "heute" liegt (null außerhalb des Plan-Zeitraums oder ohne Plan). */
+    val currentPlanWeek: StateFlow<PlanWeek?> = rollingWindowTick
+        .map { trainingPlan?.weekFor(LocalDate.now()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    /**
+     * Live berechnetes Kalorienziel nach liveRecalculation aus dem Trainingsplan
+     * (siehe TrainingPlan.calculateLiveTarget) — ersetzt das manuelle Wochenziel
+     * aus den Einstellungen, sobald Gewichtsdaten und eine aktive Planwoche
+     * vorliegen. Ohne Gewichtseintrag oder außerhalb des Plan-Zeitraums bleibt
+     * es beim manuellen Ziel (siehe weekSummary unten).
+     */
+    val liveCalorieTarget: StateFlow<LiveCalorieTarget?> = combine(
+        rollingWeightKg,
+        currentPlanWeek,
+    ) { weightKg, week ->
+        val plan = trainingPlan
+        if (plan != null && week != null && weightKg != null) {
+            plan.calculateLiveTarget(week, weightKg)
+        } else {
+            null
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     val weekSummary: StateFlow<WeekSummary> = combine(
         weekEntries,
         exerciseEntries,
         settingsStore.weeklyGoalFlow,
-    ) { entries, exercise, goal ->
+        liveCalorieTarget,
+    ) { entries, exercise, manualGoal, liveTarget ->
         // Für zukünftige Tage vorgeplante Einträge zählen erst mit, wenn ihr Tag
         // wirklich erreicht ist — sonst würde die Bilanz Dinge zeigen, die noch
         // gar nicht gegessen wurden.
@@ -149,7 +187,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             totalProteinG = consumed.sumOf { it.proteinG },
             totalCarbsG = consumed.sumOf { it.carbsG },
             totalFatG = consumed.sumOf { it.fatG },
-            goalCalories = goal,
+            // Live-Ziel aus dem Trainingsplan hat Vorrang vor dem manuellen
+            // Wochenziel, sobald es berechnet werden kann.
+            goalCalories = liveTarget?.targetKcalPerWeek ?: manualGoal,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WeekSummary())
 
