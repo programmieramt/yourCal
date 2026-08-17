@@ -6,8 +6,14 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [FoodEntry::class, FavoriteEntry::class, WeightEntry::class, ExerciseEntry::class],
-    version = 4,
+    entities = [
+        FoodEntry::class,
+        FavoriteEntry::class,
+        WeightEntry::class,
+        ExerciseEntry::class,
+        SessionCompletionEntry::class,
+    ],
+    version = 5,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -15,6 +21,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun favoriteDao(): FavoriteDao
     abstract fun weightDao(): WeightDao
     abstract fun exerciseDao(): ExerciseDao
+    abstract fun sessionCompletionDao(): SessionCompletionDao
 
     companion object {
         @Volatile

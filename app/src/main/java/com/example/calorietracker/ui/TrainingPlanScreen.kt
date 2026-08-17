@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.example.calorietracker.data.LiveCalorieTarget
 import com.example.calorietracker.data.PlanSession
@@ -46,6 +48,10 @@ fun TrainingPlanScreen(viewModel: MainViewModel) {
     val plan = viewModel.trainingPlan
     val currentWeek by viewModel.currentPlanWeek.collectAsState()
     val liveTarget by viewModel.liveCalorieTarget.collectAsState()
+    val completions by viewModel.sessionCompletions.collectAsState()
+    val onToggleSession: (Int, Int, Boolean) -> Unit = { week, index, checked ->
+        viewModel.setSessionCompleted(week, index, checked)
+    }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Trainingsplan") }) },
@@ -77,7 +83,7 @@ fun TrainingPlanScreen(viewModel: MainViewModel) {
             if (currentWeek != null) {
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
-                    CurrentWeekCard(plan, currentWeek!!, liveTarget)
+                    CurrentWeekCard(plan, currentWeek!!, liveTarget, completions, onToggleSession)
                 }
             } else {
                 item {
@@ -106,8 +112,10 @@ fun TrainingPlanScreen(viewModel: MainViewModel) {
                     week = week,
                     isCurrent = week.week == currentWeek?.week,
                     liveTarget = if (week.week == currentWeek?.week) liveTarget else null,
+                    completions = completions,
                     expanded = expandedWeek == week.week,
                     onToggle = { expandedWeek = if (expandedWeek == week.week) -1 else week.week },
+                    onToggleSession = onToggleSession,
                 )
                 HorizontalDivider()
             }
@@ -138,7 +146,13 @@ private fun RaceHeaderCard(plan: TrainingPlan) {
 }
 
 @Composable
-private fun CurrentWeekCard(plan: TrainingPlan, week: PlanWeek, liveTarget: LiveCalorieTarget?) {
+private fun CurrentWeekCard(
+    plan: TrainingPlan,
+    week: PlanWeek,
+    liveTarget: LiveCalorieTarget?,
+    completions: Set<Pair<Int, Int>>,
+    onToggleSession: (Int, Int, Boolean) -> Unit,
+) {
     val phase = plan.phases.firstOrNull { it.id == week.phaseId }
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -197,16 +211,31 @@ private fun CurrentWeekCard(plan: TrainingPlan, week: PlanWeek, liveTarget: Live
             }
 
             Spacer(modifier = Modifier.height(12.dp))
-            week.sessions.forEach { session ->
-                SessionRow(session)
+            val doneCount = week.sessions.indices.count { completions.contains(week.week to it) }
+            Text(
+                "$doneCount von ${week.sessions.size} Einheiten erledigt",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            week.sessions.forEachIndexed { index, session ->
+                SessionRow(
+                    session = session,
+                    checked = completions.contains(week.week to index),
+                    onCheckedChange = { checked -> onToggleSession(week.week, index, checked) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SessionRow(session: PlanSession) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+private fun SessionRow(session: PlanSession, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
         if (session.day != null) {
             Text(
                 session.day,
@@ -219,17 +248,19 @@ private fun SessionRow(session: PlanSession) {
             Text(
                 session.type,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (session.isRest) FontWeight.Normal else FontWeight.Bold,
-                color = if (session.isRest) {
+                fontWeight = if (session.isRest || checked) FontWeight.Normal else FontWeight.Bold,
+                color = if (session.isRest || checked) {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 },
+                textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
             )
             Text(
                 session.detail,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textDecoration = if (checked) TextDecoration.LineThrough else TextDecoration.None,
             )
         }
     }
@@ -240,9 +271,12 @@ private fun WeekRow(
     week: PlanWeek,
     isCurrent: Boolean,
     liveTarget: LiveCalorieTarget?,
+    completions: Set<Pair<Int, Int>>,
     expanded: Boolean,
     onToggle: () -> Unit,
+    onToggleSession: (Int, Int, Boolean) -> Unit,
 ) {
+    val doneCount = week.sessions.indices.count { completions.contains(week.week to it) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -260,8 +294,9 @@ private fun WeekRow(
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
             )
             val kcalPerDay = liveTarget?.targetKcalPerDay ?: week.placeholderTargetKcalPerDay
+            val doneSuffix = if (doneCount > 0) " · $doneCount/${week.sessions.size} ✓" else ""
             Text(
-                "$kcalPerDay kcal",
+                "$kcalPerDay kcal$doneSuffix",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -275,7 +310,13 @@ private fun WeekRow(
         }
         if (expanded) {
             Spacer(modifier = Modifier.height(6.dp))
-            week.sessions.forEach { session -> SessionRow(session) }
+            week.sessions.forEachIndexed { index, session ->
+                SessionRow(
+                    session = session,
+                    checked = completions.contains(week.week to index),
+                    onCheckedChange = { checked -> onToggleSession(week.week, index, checked) },
+                )
+            }
         }
     }
 }

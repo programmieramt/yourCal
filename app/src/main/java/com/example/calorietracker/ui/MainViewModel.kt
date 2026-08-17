@@ -412,6 +412,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.deleteExerciseEntry(entry) }
     }
 
+    /** Abgehakte Trainingsplan-Sessions als (Wochennummer, Session-Index)-Paare. */
+    val sessionCompletions: StateFlow<Set<Pair<Int, Int>>> = repository.observeSessionCompletions()
+        .map { list -> list.map { it.weekNumber to it.sessionIndex }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun setSessionCompleted(weekNumber: Int, sessionIndex: Int, completed: Boolean) {
+        viewModelScope.launch { repository.setSessionCompleted(weekNumber, sessionIndex, completed) }
+    }
+
     /** Exportiert alle Daten als JSON-Datei im Cache und liefert eine teilbare content://-Uri. */
     suspend fun exportToFile(): Uri = withContext(Dispatchers.IO) {
         val json = repository.exportAllData()

@@ -4,6 +4,7 @@ import com.example.calorietracker.data.AppDatabase
 import com.example.calorietracker.data.ExerciseEntry
 import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
+import com.example.calorietracker.data.SessionCompletionEntry
 import com.example.calorietracker.data.SettingsStore
 import com.example.calorietracker.data.WeightEntry
 import com.example.calorietracker.network.ClaudeApi
@@ -117,6 +118,20 @@ class FoodRepository(
     suspend fun deleteExerciseEntry(entry: ExerciseEntry) = withContext(Dispatchers.IO) {
         database.exerciseDao().delete(entry)
     }
+
+    fun observeSessionCompletions(): Flow<List<SessionCompletionEntry>> =
+        database.sessionCompletionDao().observeAll()
+
+    suspend fun setSessionCompleted(weekNumber: Int, sessionIndex: Int, completed: Boolean) =
+        withContext(Dispatchers.IO) {
+            if (completed) {
+                database.sessionCompletionDao().setCompleted(
+                    SessionCompletionEntry(weekNumber, sessionIndex, System.currentTimeMillis()),
+                )
+            } else {
+                database.sessionCompletionDao().setIncomplete(weekNumber, sessionIndex)
+            }
+        }
 
     /** Alle Tabellen als ein JSON-Dokument — für Backup/Export, kein Sync-Format. */
     suspend fun exportAllData(): String = withContext(Dispatchers.IO) {
