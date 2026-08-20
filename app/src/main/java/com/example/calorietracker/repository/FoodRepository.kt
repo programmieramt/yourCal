@@ -148,6 +148,7 @@ class FoodRepository(
         val exercise = database.exerciseDao().observeAll().first()
         val weight = database.weightDao().observeAll().first()
         val favorites = database.favoriteDao().observeAll().first()
+        val sessionCompletions = database.sessionCompletionDao().observeAll().first()
 
         val root = JSONObject()
         root.put("exportedAt", System.currentTimeMillis())
@@ -202,6 +203,17 @@ class FoodRepository(
                         .put("proteinG", e.proteinG)
                         .put("carbsG", e.carbsG)
                         .put("fatG", e.fatG)
+                },
+            ),
+        )
+        root.put(
+            "sessionCompletions",
+            JSONArray(
+                sessionCompletions.map { e ->
+                    JSONObject()
+                        .put("weekNumber", e.weekNumber)
+                        .put("sessionIndex", e.sessionIndex)
+                        .put("completedAt", e.completedAt)
                 },
             ),
         )
@@ -270,6 +282,22 @@ class FoodRepository(
                         proteinG = o.getDouble("proteinG"),
                         carbsG = o.getDouble("carbsG"),
                         fatG = o.getDouble("fatG"),
+                    ),
+                )
+                count++
+            }
+        }
+        root.optJSONArray("sessionCompletions")?.let { array ->
+            for (i in 0 until array.length()) {
+                val o = array.getJSONObject(i)
+                // REPLACE-Konflikt-Strategie in setCompleted() — anders als bei den
+                // anderen Tabellen entstehen hier beim erneuten Import keine
+                // Duplikate, da (weekNumber, sessionIndex) der Primärschlüssel ist.
+                database.sessionCompletionDao().setCompleted(
+                    SessionCompletionEntry(
+                        weekNumber = o.getInt("weekNumber"),
+                        sessionIndex = o.getInt("sessionIndex"),
+                        completedAt = o.getLong("completedAt"),
                     ),
                 )
                 count++
