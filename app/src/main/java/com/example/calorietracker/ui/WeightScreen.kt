@@ -77,97 +77,102 @@ fun WeightScreen(viewModel: MainViewModel) {
             TopAppBar(title = { Text("Gewichtsverlauf") })
         },
     ) { padding ->
-        Column(
+        // Ein einziger LazyColumn für den ganzen Screen statt LazyColumn in einer
+        // Column verschachtelt — sonst bekommt die Eintragsliste keine feste Höhe
+        // zugewiesen und wird bei genug Inhalt darüber unsichtbar, siehe HomeScreen.
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
                 .imePadding(),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = weightInput,
-                    onValueChange = { weightInput = it },
-                    label = { Text("Gewicht (kg)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal,
-                        imeAction = ImeAction.Next,
-                    ),
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = submitWeight,
-                    enabled = parsedWeight != null,
-                ) {
-                    Text("Eintragen")
+            item {
+                Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = weightInput,
+                        onValueChange = { weightInput = it },
+                        label = { Text("Gewicht (kg)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                            imeAction = ImeAction.Next,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = submitWeight,
+                        enabled = parsedWeight != null,
+                    ) {
+                        Text("Eintragen")
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                "Optional, z.B. von einer BIA-Waage — nur als Trend über mehrere Wochen aussagekräftig.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = bodyFatInput,
-                    onValueChange = { bodyFatInput = it },
-                    label = { Text("Körperfett (%)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal,
-                        imeAction = ImeAction.Next,
-                    ),
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                OutlinedTextField(
-                    value = muscleMassInput,
-                    onValueChange = { muscleMassInput = it },
-                    label = { Text("Muskelmasse (kg)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal,
-                        imeAction = ImeAction.Send,
-                    ),
-                    keyboardActions = KeyboardActions(onSend = { submitWeight() }),
-                    modifier = Modifier.weight(1f),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (weightEntries.size >= 2) {
                 Text(
-                    "Verlauf",
+                    "Optional, z.B. von einer BIA-Waage — nur als Trend über mehrere Wochen aussagekräftig.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = bodyFatInput,
+                        onValueChange = { bodyFatInput = it },
+                        label = { Text("Körperfett (%)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                            imeAction = ImeAction.Next,
+                        ),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    OutlinedTextField(
+                        value = muscleMassInput,
+                        onValueChange = { muscleMassInput = it },
+                        label = { Text("Muskelmasse (kg)") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                            imeAction = ImeAction.Send,
+                        ),
+                        keyboardActions = KeyboardActions(onSend = { submitWeight() }),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (weightEntries.size >= 2) {
+                    Text(
+                        "Verlauf",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    WeightLineChart(entries = weightEntries.reversed())
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    "Einträge",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                WeightLineChart(entries = weightEntries.reversed())
-                Spacer(modifier = Modifier.height(16.dp))
+                }
             }
 
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                "Einträge",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                items(weightEntries, key = { it.id }) { entry ->
-                    WeightRow(entry = entry, onDelete = { viewModel.deleteWeightEntry(entry) })
-                    HorizontalDivider()
-                }
+            items(weightEntries, key = { it.id }) { entry ->
+                WeightRow(entry = entry, onDelete = { viewModel.deleteWeightEntry(entry) })
+                HorizontalDivider()
             }
         }
     }
