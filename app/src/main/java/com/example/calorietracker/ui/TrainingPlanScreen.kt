@@ -1,5 +1,6 @@
 package com.example.calorietracker.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,8 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -29,12 +33,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.example.calorietracker.data.LiveCalorieTarget
 import com.example.calorietracker.data.PlanSession
 import com.example.calorietracker.data.PlanWeek
+import com.example.calorietracker.data.RecoveryState
+import com.example.calorietracker.data.RecoveryStatus
 import com.example.calorietracker.data.TrainingPlan
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -48,6 +55,7 @@ fun TrainingPlanScreen(viewModel: MainViewModel) {
     val plan = viewModel.trainingPlan
     val currentWeek by viewModel.currentPlanWeek.collectAsState()
     val liveTarget by viewModel.liveCalorieTarget.collectAsState()
+    val recoveryState by viewModel.recoveryState.collectAsState()
     val completions by viewModel.sessionCompletions.collectAsState()
     val onToggleSession: (Int, Int, Boolean) -> Unit = { week, index, checked ->
         viewModel.setSessionCompleted(week, index, checked)
@@ -79,6 +87,13 @@ fun TrainingPlanScreen(viewModel: MainViewModel) {
                 .padding(16.dp),
         ) {
             item { RaceHeaderCard(plan) }
+
+            if (recoveryState != null) {
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    RecoveryCard(state = recoveryState!!)
+                }
+            }
 
             if (currentWeek != null) {
                 item {
@@ -118,6 +133,53 @@ fun TrainingPlanScreen(viewModel: MainViewModel) {
                     onToggleSession = onToggleSession,
                 )
                 HorizontalDivider()
+            }
+        }
+    }
+}
+
+/**
+ * Erholungs-Ampel: eine Zahl (Form = Fitness − Fatigue nach Banister) plus
+ * Ampelfarbe und Hinweistext — bewusst keine Einzelmetriken (CTL/ATL) in der
+ * UI, um keinen "Zahlenfriedhof" zu erzeugen. Die Farbcodierung hier ist eine
+ * bewusste Ausnahme vom sonst neutralen Farbschema der App: anders als bei
+ * "Kalorienziel überschritten" (bewusst neutral, um ehrliches Loggen nicht zu
+ * bestrafen) ist eine Belastungsampel ein etabliertes, wertfreies UX-Muster.
+ */
+@Composable
+private fun RecoveryCard(state: RecoveryState) {
+    val statusColor = when (state.status) {
+        RecoveryStatus.RED -> Color(0xFFD32F2F)
+        RecoveryStatus.YELLOW -> Color(0xFFF9A825)
+        RecoveryStatus.GREEN -> Color(0xFF2E7D32)
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .background(statusColor, shape = CircleShape),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    "Erholung: ${"%+.0f".format(state.form)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    state.hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
