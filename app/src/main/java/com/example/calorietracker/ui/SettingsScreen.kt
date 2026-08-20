@@ -55,10 +55,19 @@ fun SettingsScreen(
     val settingsStore = viewModel.settingsStore
     val currentApiKey by settingsStore.apiKeyFlow.collectAsState()
     val currentGoal by settingsStore.weeklyGoalFlow.collectAsState()
+    val currentIntervalsApiKey by settingsStore.intervalsApiKeyFlow.collectAsState()
+    val currentIntervalsAthleteId by settingsStore.intervalsAthleteIdFlow.collectAsState()
 
     var apiKeyInput by rememberSaveable(currentApiKey) { mutableStateOf(currentApiKey.orEmpty()) }
     var goalInput by rememberSaveable(currentGoal) { mutableStateOf(currentGoal.toString()) }
+    var intervalsApiKeyInput by rememberSaveable(currentIntervalsApiKey) {
+        mutableStateOf(currentIntervalsApiKey.orEmpty())
+    }
+    var intervalsAthleteIdInput by rememberSaveable(currentIntervalsAthleteId) {
+        mutableStateOf(currentIntervalsAthleteId.orEmpty())
+    }
     var showApiKey by remember { mutableStateOf(false) }
+    var showIntervalsApiKey by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
     var isImporting by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -171,6 +180,57 @@ fun SettingsScreen(
             HorizontalDivider()
             Spacer(modifier = Modifier.height(24.dp))
 
+            Text("intervals.icu (Erholungs-Ampel)", style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                "Für die Erholungs-Ampel auf dem Heute-Screen — liest deine Trainingsaktivitäten " +
+                    "von intervals.icu, um Fitness/Fatigue/Form zu berechnen. Ohne Eintrag hier " +
+                    "bleibt die Ampel ausgeblendet.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = intervalsAthleteIdInput,
+                onValueChange = { intervalsAthleteIdInput = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Athleten-ID (z.B. i597819)") },
+                singleLine = true,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = intervalsApiKeyInput,
+                onValueChange = { intervalsApiKeyInput = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("API-Key") },
+                singleLine = true,
+                visualTransformation = if (showIntervalsApiKey) {
+                    VisualTransformation.None
+                } else {
+                    VisualTransformation { text ->
+                        TransformedText(
+                            AnnotatedString("•".repeat(text.text.length)),
+                            OffsetMapping.Identity,
+                        )
+                    }
+                },
+                trailingIcon = {
+                    Text(
+                        if (showIntervalsApiKey) "Verbergen" else "Anzeigen",
+                        modifier = Modifier.padding(end = 8.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Button(onClick = { showIntervalsApiKey = !showIntervalsApiKey }) {
+                Text(if (showIntervalsApiKey) "Key verbergen" else "Key anzeigen")
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(24.dp))
+
             Text("Daten-Export", style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -236,6 +296,8 @@ fun SettingsScreen(
                 onClick = {
                     settingsStore.apiKey = apiKeyInput
                     goalInput.toIntOrNull()?.let { settingsStore.weeklyGoalCalories = it }
+                    settingsStore.intervalsApiKey = intervalsApiKeyInput
+                    settingsStore.intervalsAthleteId = intervalsAthleteIdInput
                     onBack()
                 },
                 modifier = Modifier.fillMaxWidth(),

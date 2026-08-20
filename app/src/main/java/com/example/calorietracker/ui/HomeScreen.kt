@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,6 +35,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -75,6 +78,8 @@ import androidx.compose.ui.unit.dp
 import com.example.calorietracker.data.ExerciseEntry
 import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
+import com.example.calorietracker.data.RecoveryState
+import com.example.calorietracker.data.RecoveryStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -87,6 +92,7 @@ fun HomeScreen(
     quickAddTrigger: Int = 0,
 ) {
     val summary by viewModel.weekSummary.collectAsState()
+    val recoveryState by viewModel.recoveryState.collectAsState()
     val dailyCalories by viewModel.dailyCalories.collectAsState()
     val entriesByDay by viewModel.entriesByDay.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
@@ -182,6 +188,14 @@ fun HomeScreen(
                 .padding(16.dp)
                 .imePadding(),
         ) {
+            // 0. Erholungs-Ampel (nur sichtbar, wenn intervals.icu verbunden ist)
+            if (recoveryState != null) {
+                item {
+                    RecoveryCard(state = recoveryState!!)
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+            }
+
             // 1. Kalorienerfassung
             item {
                 Column {
@@ -399,6 +413,53 @@ private fun WeekProgressCard(summary: WeekSummary) {
             MacroChip("Protein", summary.totalProteinG)
             MacroChip("Kohlenhydrate", summary.totalCarbsG)
             MacroChip("Fett", summary.totalFatG)
+        }
+    }
+}
+
+/**
+ * Erholungs-Ampel: eine Zahl (Form = Fitness − Fatigue nach Banister) plus
+ * Ampelfarbe und Hinweistext — bewusst keine Einzelmetriken (CTL/ATL) in der
+ * UI, um keinen "Zahlenfriedhof" zu erzeugen. Die Farbcodierung hier ist eine
+ * bewusste Ausnahme vom sonst neutralen Farbschema der App: anders als bei
+ * "Kalorienziel überschritten" (bewusst neutral, um ehrliches Loggen nicht zu
+ * bestrafen) ist eine Belastungsampel ein etabliertes, wertfreies UX-Muster.
+ */
+@Composable
+private fun RecoveryCard(state: RecoveryState) {
+    val statusColor = when (state.status) {
+        RecoveryStatus.RED -> Color(0xFFD32F2F)
+        RecoveryStatus.YELLOW -> Color(0xFFF9A825)
+        RecoveryStatus.GREEN -> Color(0xFF2E7D32)
+    }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .background(statusColor, shape = CircleShape),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    "Erholung: ${"%+.0f".format(state.form)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    state.hint,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

@@ -12,10 +12,13 @@ import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
 import com.example.calorietracker.data.LiveCalorieTarget
 import com.example.calorietracker.data.PlanWeek
+import com.example.calorietracker.data.RecoveryModel
+import com.example.calorietracker.data.RecoveryState
 import com.example.calorietracker.data.SettingsStore
 import com.example.calorietracker.data.TrainingPlan
 import com.example.calorietracker.data.WeightEntry
 import com.example.calorietracker.data.calculateLiveTarget
+import com.example.calorietracker.network.IntervalsIcuApi
 import com.example.calorietracker.repository.FoodRepository
 import com.example.calorietracker.widget.CalorieWidget
 import java.io.File
@@ -141,6 +144,53 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             emit(Unit)
             delay(5 * 60 * 1000L)
         }
+    }
+
+    // Aus der Leistungsdiagnostik Uni Potsdam, 27.05.2026 — Basis für die
+    // Load-Berechnung im Recovery-Modell (siehe RecoveryModel.loadFrom).
+    private val recoveryHrMax = 191.0
+
+    /**
+     * Recovery-Ampel (Fitness/Fatigue/Form nach Banister). Synct höchstens einmal
+     * pro Kalendertag mit intervals.icu (getriggert vom ohnehin laufenden
+     * rollingWindowTick) und schreibt CTL/ATL Tag für Tag fort, auch über
+     * mehrtägige Lücken seit dem letzten App-Start hinweg. Ohne hinterlegte
+     * intervals.icu-Zugangsdaten bleibt der Wert null.
+     */
+    val recoveryState: StateFlow<RecoveryState?> = flow {
+        while (true) {
+            emit(syncRecoveryState())
+            delay(5 * 60 * 1000L)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private suspend fun syncRecoveryState(): RecoveryState? {
+        val apiKey = settingsStore.intervalsApiKey ?: return null
+        val athleteId = settingsStore.intervalsAthleteId ?: return null
+
+        val current = RecoveryState(
+            date = LocalDate.parse(settingsStore.recoveryDate),
+            ctl = settingsStore.recoveryCtl,
+            atl = settingsStore.recoveryAtl,
+        )
+        val today = LocalDate.now()
+        if (!current.date.isBefore(today)) return current
+
+        val activities = withContext(Dispatchers.IO) {
+            runCatching {
+                IntervalsIcuApi.fetchActivities(athleteId, apiKey, current.date.plusDays(1), today)
+            }.getOrNull()
+        } ?: return current // Netzwerkfehler o.ä. — beim naechsten Tick erneut versuchen
+
+        val loadByDate = activities
+            .groupBy { it.date }
+            .mapValues { (_, acts) -> acts.sumOf { RecoveryModel.loadFrom(it.durationMin, it.avgHr, recoveryHrMax) } }
+        val updated = RecoveryModel.advance(current, today, loadByDate)
+
+        settingsStore.recoveryCtl = updated.ctl
+        settingsStore.recoveryAtl = updated.atl
+        settingsStore.recoveryDate = updated.date.toString()
+        return updated
     }
 
     val weekEntries: StateFlow<List<FoodEntry>> = combine(
