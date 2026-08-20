@@ -329,8 +329,8 @@ private fun BodyFatTrendChart(points: List<WeeklyPoint>) {
             if (fatMass != null && leanMass != null) {
                 append(" · ~${"%.1f".format(fatMass)} kg Fettmasse · ~${"%.1f".format(leanMass)} kg Magermasse")
             }
-            if (muscleMass != null) {
-                append(" · ${"%.1f".format(muscleMass)} kg Muskelmasse (Waage)")
+            if (muscleMass != null && latest.avgWeightKg != null) {
+                append(" · ${"%.1f".format(muscleMass / latest.avgWeightKg * 100)}% Muskelmasse (Waage)")
             }
         }
         Text(

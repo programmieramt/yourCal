@@ -58,12 +58,16 @@ fun WeightScreen(viewModel: MainViewModel) {
     var muscleMassInput by rememberSaveable { mutableStateOf("") }
     val parsedWeight = weightInput.replace(",", ".").toDoubleOrNull()
     val parsedBodyFat = bodyFatInput.replace(",", ".").toDoubleOrNull()
-    val parsedMuscleMass = muscleMassInput.replace(",", ".").toDoubleOrNull()
+    val parsedMuscleMassPercent = muscleMassInput.replace(",", ".").toDoubleOrNull()
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val submitWeight: () -> Unit = {
-        parsedWeight?.let {
-            viewModel.addWeightEntry(it, parsedBodyFat, parsedMuscleMass)
+        parsedWeight?.let { weight ->
+            // Waagen geben Muskelmasse meist als % des Körpergewichts aus, nicht
+            // in kg — hier umrechnen, damit intern (wie bodyFatPercent -> fatMassKg)
+            // einheitlich in kg gespeichert wird.
+            val muscleMassKg = parsedMuscleMassPercent?.let { percent -> weight * percent / 100 }
+            viewModel.addWeightEntry(weight, parsedBodyFat, muscleMassKg)
             weightInput = ""
             bodyFatInput = ""
             muscleMassInput = ""
@@ -134,7 +138,7 @@ fun WeightScreen(viewModel: MainViewModel) {
                     OutlinedTextField(
                         value = muscleMassInput,
                         onValueChange = { muscleMassInput = it },
-                        label = { Text("Muskelmasse (kg)") },
+                        label = { Text("Muskelmasse (%)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Decimal,
@@ -243,7 +247,7 @@ private fun WeightRow(entry: WeightEntry, onDelete: () -> Unit) {
         Column {
             val extras = listOfNotNull(
                 entry.bodyFatPercent?.let { "${it}% KF" },
-                entry.muscleMassKg?.let { "${it} kg Muskelmasse" },
+                entry.muscleMassKg?.let { "${"%.1f".format(it / entry.weightKg * 100)}% Muskelmasse" },
             ).joinToString(" · ")
             Text(
                 "${entry.weightKg} kg" + if (extras.isNotEmpty()) " · $extras" else "",
