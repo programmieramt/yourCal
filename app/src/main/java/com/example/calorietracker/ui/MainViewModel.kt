@@ -80,7 +80,23 @@ data class WeeklyPoint(
     val label: String,
     val netCalories: Int,
     val avgWeightKg: Double?,
-)
+    /** Ø-Körperfettanteil der Woche, nur aus Einträgen mit erfasstem Wert — reiner Trend, kein Ziel. */
+    val avgBodyFatPercent: Double? = null,
+    /** Ø-Muskelmasse laut Waage, direkt gemittelt — nicht dasselbe wie avgLeanMassKg. */
+    val avgMuscleMassKg: Double? = null,
+) {
+    /** rollingWeightKg * rollingBodyFatPercent / 100 — siehe bodyComposition.derivedMetrics im Trainingsplan. */
+    val avgFatMassKg: Double?
+        get() = if (avgWeightKg != null && avgBodyFatPercent != null) avgWeightKg * avgBodyFatPercent / 100 else null
+
+    /** rollingWeightKg - fatMassKg — "alles außer Fett" (Muskeln, Knochen, Organe, Wasser). */
+    val avgLeanMassKg: Double?
+        get() {
+            val weight = avgWeightKg ?: return null
+            val fatMass = avgFatMassKg ?: return null
+            return weight - fatMass
+        }
+}
 
 /** Ein wählbarer Tag für die Essensplanung: heute oder einer der nächsten 6 Tage. */
 data class PlanDayOption(
@@ -307,11 +323,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val weekFood = foodByWeek[weekStart].orEmpty().sumOf { it.calories }
                 val weekBurned = exerciseByWeek[weekStart].orEmpty().sumOf { it.caloriesBurned }
                 val weekWeights = weightByWeek[weekStart].orEmpty()
+                val bodyFatValues = weekWeights.mapNotNull { it.bodyFatPercent }
+                val muscleMassValues = weekWeights.mapNotNull { it.muscleMassKg }
                 WeeklyPoint(
                     weekStart = weekStart,
                     label = weekLabelFormat.format(Date(weekStart)),
                     netCalories = weekFood - weekBurned,
                     avgWeightKg = if (weekWeights.isEmpty()) null else weekWeights.map { it.weightKg }.average(),
+                    avgBodyFatPercent = bodyFatValues.takeIf { it.isNotEmpty() }?.average(),
+                    avgMuscleMassKg = muscleMassValues.takeIf { it.isNotEmpty() }?.average(),
                 )
             }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -395,8 +415,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .observeWeightEntries()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addWeightEntry(weightKg: Double) {
-        viewModelScope.launch { repository.addWeightEntry(weightKg) }
+    fun addWeightEntry(weightKg: Double, bodyFatPercent: Double? = null, muscleMassKg: Double? = null) {
+        viewModelScope.launch { repository.addWeightEntry(weightKg, bodyFatPercent, muscleMassKg) }
     }
 
     fun deleteWeightEntry(entry: WeightEntry) {

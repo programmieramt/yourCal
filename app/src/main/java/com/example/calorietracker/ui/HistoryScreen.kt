@@ -78,6 +78,20 @@ fun HistoryScreen(viewModel: MainViewModel) {
                     } else {
                         WeightCalorieTrendChart(points = weeklyTrend, weeklyGoal = weeklyGoal)
                     }
+
+                    if (weeklyTrend.any { it.avgBodyFatPercent != null }) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Körperzusammensetzung",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        BodyFatTrendChart(points = weeklyTrend)
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider()
                     Spacer(modifier = Modifier.height(8.dp))
@@ -244,5 +258,85 @@ private fun WeightCalorieTrendChart(points: List<WeeklyPoint>, weeklyGoal: Int) 
                 )
             }
         }
+    }
+}
+
+/**
+ * Körperfettanteil pro Woche als Linienverlauf, bewusst ohne Zielkurve — laut
+ * dem Trainingsplan (bodyComposition.noTargetCurve) ist das eine reine
+ * Beobachtungsgröße, kein hartes Ziel wie das Gewicht. Fett-/Magermasse
+ * darunter nur als aktuelle Zahl, nicht als eigener Chart — hält die Ansicht
+ * überschaubar; die Rechnung (rollingWeightKg * bodyFat% / 100) steckt in
+ * WeeklyPoint.avgFatMassKg/avgLeanMassKg.
+ */
+@Composable
+private fun BodyFatTrendChart(points: List<WeeklyPoint>) {
+    val lineColor = MaterialTheme.colorScheme.primary
+
+    val fatPoints = points.mapIndexedNotNull { index, point -> point.avgBodyFatPercent?.let { index to it } }
+    if (fatPoints.size >= 2) {
+        val minFat = fatPoints.minOf { it.second }
+        val maxFat = fatPoints.maxOf { it.second }
+        val range = (maxFat - minFat).takeIf { it > 0.1 } ?: 1.0
+        val paddedMin = minFat - range * 0.15
+        val paddedRange = range * 1.3
+
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp),
+        ) {
+            val stepX = size.width / (points.size - 1).coerceAtLeast(1)
+
+            fun yFor(percent: Double): Float {
+                val fraction = ((percent - paddedMin) / paddedRange).toFloat()
+                return size.height - fraction * size.height
+            }
+
+            for (i in 0 until fatPoints.size - 1) {
+                val (indexA, valueA) = fatPoints[i]
+                val (indexB, valueB) = fatPoints[i + 1]
+                if (indexB == indexA + 1) {
+                    drawLine(
+                        color = lineColor,
+                        start = Offset(indexA * stepX, yFor(valueA)),
+                        end = Offset(indexB * stepX, yFor(valueB)),
+                        strokeWidth = 2.5.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                }
+            }
+            fatPoints.forEach { (index, value) ->
+                drawCircle(color = lineColor, radius = 4.dp.toPx(), center = Offset(index * stepX, yFor(value)))
+            }
+        }
+    } else {
+        Text(
+            "Noch nicht genug Körperfett-Daten für einen Verlauf.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    val latest = points.lastOrNull { it.avgBodyFatPercent != null }
+    if (latest != null) {
+        Spacer(modifier = Modifier.height(8.dp))
+        val fatMass = latest.avgFatMassKg
+        val leanMass = latest.avgLeanMassKg
+        val muscleMass = latest.avgMuscleMassKg
+        val summary = buildString {
+            append("${"%.1f".format(latest.avgBodyFatPercent)}% Körperfett")
+            if (fatMass != null && leanMass != null) {
+                append(" · ~${"%.1f".format(fatMass)} kg Fettmasse · ~${"%.1f".format(leanMass)} kg Magermasse")
+            }
+            if (muscleMass != null) {
+                append(" · ${"%.1f".format(muscleMass)} kg Muskelmasse (Waage)")
+            }
+        }
+        Text(
+            summary,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

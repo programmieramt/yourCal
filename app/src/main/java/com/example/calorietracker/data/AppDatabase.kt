@@ -13,7 +13,7 @@ import androidx.room.RoomDatabase
         ExerciseEntry::class,
         SessionCompletionEntry::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {

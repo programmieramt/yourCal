@@ -54,13 +54,19 @@ import java.util.Locale
 fun WeightScreen(viewModel: MainViewModel) {
     val weightEntries by viewModel.weightEntries.collectAsState()
     var weightInput by rememberSaveable { mutableStateOf("") }
+    var bodyFatInput by rememberSaveable { mutableStateOf("") }
+    var muscleMassInput by rememberSaveable { mutableStateOf("") }
     val parsedWeight = weightInput.replace(",", ".").toDoubleOrNull()
+    val parsedBodyFat = bodyFatInput.replace(",", ".").toDoubleOrNull()
+    val parsedMuscleMass = muscleMassInput.replace(",", ".").toDoubleOrNull()
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val submitWeight: () -> Unit = {
         parsedWeight?.let {
-            viewModel.addWeightEntry(it)
+            viewModel.addWeightEntry(it, parsedBodyFat, parsedMuscleMass)
             weightInput = ""
+            bodyFatInput = ""
+            muscleMassInput = ""
             focusManager.clearFocus()
             keyboardController?.hide()
         }
@@ -86,9 +92,8 @@ fun WeightScreen(viewModel: MainViewModel) {
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Decimal,
-                        imeAction = ImeAction.Send,
+                        imeAction = ImeAction.Next,
                     ),
-                    keyboardActions = KeyboardActions(onSend = { submitWeight() }),
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -98,6 +103,41 @@ fun WeightScreen(viewModel: MainViewModel) {
                 ) {
                     Text("Eintragen")
                 }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                "Optional, z.B. von einer BIA-Waage — nur als Trend über mehrere Wochen aussagekräftig.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = bodyFatInput,
+                    onValueChange = { bodyFatInput = it },
+                    label = { Text("Körperfett (%)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next,
+                    ),
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedTextField(
+                    value = muscleMassInput,
+                    onValueChange = { muscleMassInput = it },
+                    label = { Text("Muskelmasse (kg)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Send,
+                    ),
+                    keyboardActions = KeyboardActions(onSend = { submitWeight() }),
+                    modifier = Modifier.weight(1f),
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -196,8 +236,12 @@ private fun WeightRow(entry: WeightEntry, onDelete: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column {
+            val extras = listOfNotNull(
+                entry.bodyFatPercent?.let { "${it}% KF" },
+                entry.muscleMassKg?.let { "${it} kg Muskelmasse" },
+            ).joinToString(" · ")
             Text(
-                "${entry.weightKg} kg",
+                "${entry.weightKg} kg" + if (extras.isNotEmpty()) " · $extras" else "",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )

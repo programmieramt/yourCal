@@ -90,8 +90,17 @@ class FoodRepository(
 
     fun observeWeightEntries(): Flow<List<WeightEntry>> = database.weightDao().observeAll()
 
-    suspend fun addWeightEntry(weightKg: Double): WeightEntry = withContext(Dispatchers.IO) {
-        val entry = WeightEntry(timestamp = System.currentTimeMillis(), weightKg = weightKg)
+    suspend fun addWeightEntry(
+        weightKg: Double,
+        bodyFatPercent: Double? = null,
+        muscleMassKg: Double? = null,
+    ): WeightEntry = withContext(Dispatchers.IO) {
+        val entry = WeightEntry(
+            timestamp = System.currentTimeMillis(),
+            weightKg = weightKg,
+            bodyFatPercent = bodyFatPercent,
+            muscleMassKg = muscleMassKg,
+        )
         val id = database.weightDao().insert(entry)
         entry.copy(id = id)
     }
@@ -172,10 +181,13 @@ class FoodRepository(
             "weightEntries",
             JSONArray(
                 weight.map { e ->
-                    JSONObject()
+                    val o = JSONObject()
                         .put("id", e.id)
                         .put("timestamp", e.timestamp)
                         .put("weightKg", e.weightKg)
+                    e.bodyFatPercent?.let { o.put("bodyFatPercent", it) }
+                    e.muscleMassKg?.let { o.put("muscleMassKg", it) }
+                    o
                 },
             ),
         )
@@ -241,6 +253,8 @@ class FoodRepository(
                     WeightEntry(
                         timestamp = o.getLong("timestamp"),
                         weightKg = o.getDouble("weightKg"),
+                        bodyFatPercent = if (o.has("bodyFatPercent")) o.getDouble("bodyFatPercent") else null,
+                        muscleMassKg = if (o.has("muscleMassKg")) o.getDouble("muscleMassKg") else null,
                     ),
                 )
                 count++
