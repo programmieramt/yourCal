@@ -38,9 +38,9 @@ private data class TabDestination(val route: String, val label: String, val icon
 
 private val TAB_DESTINATIONS = listOf(
     TabDestination("home", "Heute", Icons.Filled.Home),
-    TabDestination("history", "Historie", Icons.Filled.History),
     TabDestination("weight", "Gewicht", Icons.Filled.MonitorWeight),
     TabDestination("plan", "Plan", Icons.Filled.CalendarMonth),
+    TabDestination("history", "Historie", Icons.Filled.History),
 )
 
 class MainActivity : ComponentActivity() {
