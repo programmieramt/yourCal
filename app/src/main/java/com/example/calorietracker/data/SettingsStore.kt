@@ -15,6 +15,7 @@ private const val KEY_INTERVALS_ATHLETE_ID = "intervals_athlete_id"
 private const val KEY_RECOVERY_CTL = "recovery_ctl"
 private const val KEY_RECOVERY_ATL = "recovery_atl"
 private const val KEY_RECOVERY_DATE = "recovery_date"
+private const val KEY_WEEK_RESET_AT = "week_reset_at"
 
 // ~2000 kcal/Tag als Startwert für das Wochenziel
 const val DEFAULT_WEEKLY_GOAL_CALORIES = 14000
@@ -56,6 +57,9 @@ class SettingsStore(context: Context) {
 
     private val _intervalsAthleteIdFlow = MutableStateFlow(prefs.getString(KEY_INTERVALS_ATHLETE_ID, null))
     val intervalsAthleteIdFlow: StateFlow<String?> = _intervalsAthleteIdFlow.asStateFlow()
+
+    private val _weekResetAtFlow = MutableStateFlow(prefs.getLong(KEY_WEEK_RESET_AT, 0L))
+    val weekResetAtFlow: StateFlow<Long> = _weekResetAtFlow.asStateFlow()
 
     var apiKey: String?
         get() = prefs.getString(KEY_API_KEY, null)
@@ -102,4 +106,16 @@ class SettingsStore(context: Context) {
     var recoveryDate: String
         get() = prefs.getString(KEY_RECOVERY_DATE, RECOVERY_SEED_DATE) ?: RECOVERY_SEED_DATE
         set(value) = prefs.edit().putString(KEY_RECOVERY_DATE, value).apply()
+
+    /**
+     * Zeitpunkt eines manuellen Wochenkalorien-Resets (0 = nie zurückgesetzt).
+     * Löscht keine Einträge — verschiebt nur die "since"-Grenze fürs Wochenziel
+     * nach vorn, Einträge davor bleiben in der Historie sichtbar.
+     */
+    var weekResetAt: Long
+        get() = prefs.getLong(KEY_WEEK_RESET_AT, 0L)
+        set(value) {
+            prefs.edit().putLong(KEY_WEEK_RESET_AT, value).apply()
+            _weekResetAtFlow.value = value
+        }
 }

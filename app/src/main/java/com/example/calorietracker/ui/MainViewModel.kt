@@ -196,14 +196,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val weekEntries: StateFlow<List<FoodEntry>> = combine(
         repository.observeAllEntries(),
         rollingWindowTick,
-    ) { all, _ -> all.filter { it.timestamp >= startOfRollingWeek() } }
+        settingsStore.weekResetAtFlow,
+    ) { all, _, resetAt -> all.filter { it.timestamp >= maxOf(startOfRollingWeek(), resetAt) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val exerciseEntries: StateFlow<List<ExerciseEntry>> = combine(
         repository.observeAllExercise(),
         rollingWindowTick,
-    ) { all, _ -> all.filter { it.timestamp >= startOfRollingWeek() } }
+        settingsStore.weekResetAtFlow,
+    ) { all, _, resetAt -> all.filter { it.timestamp >= maxOf(startOfRollingWeek(), resetAt) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * Setzt nur die aktuelle Wochenbilanz zurück — löscht keine Einträge, verschiebt
+     * lediglich die "since"-Grenze für weekEntries/exerciseEntries auf jetzt. Ältere
+     * Einträge bleiben unverändert in der Historie sichtbar.
+     */
+    fun resetWeek() {
+        settingsStore.weekResetAt = System.currentTimeMillis()
+    }
 
     /** Statischer Trainings-/Kalorienplan aus assets/training_plan.json, falls vorhanden. */
     val trainingPlan: TrainingPlan? by lazy { TrainingPlan.loadFromAssets(application) }

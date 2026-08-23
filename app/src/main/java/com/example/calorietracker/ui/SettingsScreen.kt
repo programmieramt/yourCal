@@ -176,6 +176,25 @@ fun SettingsScreen(
                 singleLine = true,
             )
 
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Setzt nur die aktuelle Wochenbilanz auf 0 zurück — Einträge werden dabei " +
+                    "nicht gelöscht und bleiben in der Historie sichtbar, sie zählen nur ab " +
+                    "jetzt nicht mehr fürs Wochenziel.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    viewModel.resetWeek()
+                    scope.launch { snackbarHostState.showSnackbar("Wochenkalorien zurückgesetzt.") }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Wochenkalorien zurücksetzen")
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
             HorizontalDivider()
             Spacer(modifier = Modifier.height(24.dp))
