@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.calorietracker.data.FoodEntry
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -325,12 +326,18 @@ private fun BodyFatTrendChart(points: List<WeeklyPoint>) {
         val leanMass = latest.avgLeanMassKg
         val muscleMass = latest.avgMuscleMassKg
         val summary = buildString {
-            append("${"%.1f".format(latest.avgBodyFatPercent)}% Körperfett")
+            append("${"%.1f".format(Locale.GERMAN, latest.avgBodyFatPercent)}% Körperfett")
             if (fatMass != null && leanMass != null) {
-                append(" · ~${"%.1f".format(fatMass)} kg Fettmasse · ~${"%.1f".format(leanMass)} kg Magermasse")
+                append(
+                    " · ~${"%.1f".format(Locale.GERMAN, fatMass)} kg Fettmasse · " +
+                        "~${"%.1f".format(Locale.GERMAN, leanMass)} kg Magermasse",
+                )
             }
             if (muscleMass != null && latest.avgWeightKg != null) {
-                append(" · ${"%.1f".format(muscleMass / latest.avgWeightKg * 100)}% Muskelmasse (Waage)")
+                append(
+                    " · ${"%.1f".format(Locale.GERMAN, muscleMass / latest.avgWeightKg * 100)}% " +
+                        "Muskelmasse (Waage)",
+                )
             }
         }
         Text(

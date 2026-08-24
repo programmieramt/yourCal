@@ -246,11 +246,14 @@ private fun WeightRow(entry: WeightEntry, onDelete: () -> Unit) {
     ) {
         Column {
             val extras = listOfNotNull(
-                entry.bodyFatPercent?.let { "${it}% KF" },
-                entry.muscleMassKg?.let { "${"%.1f".format(it / entry.weightKg * 100)}% Muskelmasse" },
+                entry.bodyFatPercent?.let { "${"%.1f".format(Locale.GERMAN, it)}% KF" },
+                entry.muscleMassKg?.let {
+                    "${"%.1f".format(Locale.GERMAN, it / entry.weightKg * 100)}% Muskelmasse"
+                },
             ).joinToString(" · ")
             Text(
-                "${entry.weightKg} kg" + if (extras.isNotEmpty()) " · $extras" else "",
+                "${"%.1f".format(Locale.GERMAN, entry.weightKg)} kg" +
+                    if (extras.isNotEmpty()) " · $extras" else "",
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
             )

@@ -46,6 +46,7 @@ import com.example.calorietracker.data.TrainingPlan
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.util.Locale
 
 private val dateFormat = DateTimeFormatter.ofPattern("dd.MM.")
 
@@ -171,7 +172,7 @@ private fun RecoveryCard(state: RecoveryState) {
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    "Erholung: ${"%+.0f".format(state.form)}",
+                    "Erholung: ${"%+.0f".format(Locale.GERMAN, state.form)}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -227,7 +228,8 @@ private fun CurrentWeekCard(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                "${week.startDate.format(dateFormat)} – ${week.endDate.format(dateFormat)} · ${week.volumeKm} km geplant",
+                "${week.startDate.format(dateFormat)} – ${week.endDate.format(dateFormat)} · " +
+                    "${"%.0f".format(Locale.GERMAN, week.volumeKm)} km geplant",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -244,7 +246,7 @@ private fun CurrentWeekCard(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    "Live berechnet aus Ø-Gewicht ${"%.1f".format(liveTarget.rollingWeightKg)} kg " +
+                    "Live berechnet aus Ø-Gewicht ${"%.1f".format(Locale.GERMAN, liveTarget.rollingWeightKg)} kg " +
                         "(letzte Wiege-Einträge)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
