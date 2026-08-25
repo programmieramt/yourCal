@@ -14,9 +14,9 @@ interface ExerciseDao {
     @Delete
     suspend fun delete(entry: ExerciseEntry)
 
-    @Query("SELECT * FROM exercise_entries WHERE timestamp >= :since ORDER BY timestamp DESC")
+    @Query("SELECT * FROM exercise_entries WHERE timestamp >= :since ORDER BY timestamp DESC, id DESC")
     fun observeSince(since: Long): Flow<List<ExerciseEntry>>
 
-    @Query("SELECT * FROM exercise_entries ORDER BY timestamp DESC")
+    @Query("SELECT * FROM exercise_entries ORDER BY timestamp DESC, id DESC")
     fun observeAll(): Flow<List<ExerciseEntry>>
 }

@@ -1,6 +1,7 @@
 package com.example.calorietracker.repository
 
 import android.content.Context
+import android.util.Log
 import androidx.glance.appwidget.updateAll
 import com.example.calorietracker.data.AppDatabase
 import com.example.calorietracker.data.ExerciseEntry
@@ -34,6 +35,7 @@ class FoodRepository(
      */
     private suspend fun refreshWidget() = withContext(Dispatchers.IO) {
         runCatching { CalorieWidget().updateAll(context) }
+            .onFailure { Log.e("FoodRepository", "Widget-Refresh fehlgeschlagen", it) }
     }
 
     fun observeEntriesSince(since: Long): Flow<List<FoodEntry>> =

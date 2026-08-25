@@ -18,9 +18,13 @@ interface FoodDao {
     @Delete
     suspend fun delete(entry: FoodEntry)
 
-    @Query("SELECT * FROM food_entries WHERE timestamp >= :since ORDER BY timestamp DESC")
+    // Zweitkriterium id DESC: Bei geplanten Mahlzeiten für denselben zukünftigen
+    // Tag haben mehrere Einträge exakt denselben Zeitstempel (Mittag) — ohne
+    // Tiebreaker ist die Reihenfolge bei Gleichstand in SQLite nicht garantiert,
+    // "zuletzt hinzugefügt" landet dann nicht zuverlässig oben.
+    @Query("SELECT * FROM food_entries WHERE timestamp >= :since ORDER BY timestamp DESC, id DESC")
     fun observeSince(since: Long): Flow<List<FoodEntry>>
 
-    @Query("SELECT * FROM food_entries ORDER BY timestamp DESC")
+    @Query("SELECT * FROM food_entries ORDER BY timestamp DESC, id DESC")
     fun observeAll(): Flow<List<FoodEntry>>
 }
