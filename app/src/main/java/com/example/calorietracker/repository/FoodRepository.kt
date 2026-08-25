@@ -1,5 +1,7 @@
 package com.example.calorietracker.repository
 
+import android.content.Context
+import androidx.glance.appwidget.updateAll
 import com.example.calorietracker.data.AppDatabase
 import com.example.calorietracker.data.ExerciseEntry
 import com.example.calorietracker.data.FavoriteEntry
@@ -9,6 +11,7 @@ import com.example.calorietracker.data.SettingsStore
 import com.example.calorietracker.data.WeightEntry
 import com.example.calorietracker.network.ClaudeApi
 import com.example.calorietracker.network.ClaudeApiException
+import com.example.calorietracker.widget.CalorieWidget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -19,7 +22,20 @@ import org.json.JSONObject
 class FoodRepository(
     private val database: AppDatabase,
     private val settingsStore: SettingsStore,
+    private val context: Context,
 ) {
+    /**
+     * Aktualisiert das Home-Widget direkt bei jedem Schreibvorgang, statt sich auf
+     * einen Flow-Collector im ViewModel zu verlassen — der lief nur, solange die
+     * App-Instanz am Leben war. Killt Android den Prozess im Hintergrund (bei
+     * Widget-Nutzung ohne die App offen zu halten, auf manchen ROMs sehr
+     * aggressiv), blieb das Widget sonst eingefroren. Direkt hier aufgerufen,
+     * läuft es garantiert im selben Prozess, der gerade den Schreibvorgang macht.
+     */
+    private suspend fun refreshWidget() = withContext(Dispatchers.IO) {
+        runCatching { CalorieWidget().updateAll(context) }
+    }
+
     fun observeEntriesSince(since: Long): Flow<List<FoodEntry>> =
         database.foodDao().observeSince(since)
 
@@ -39,21 +55,25 @@ class FoodRepository(
             fatG = estimate.fatG,
         )
         val id = database.foodDao().insert(entry)
+        refreshWidget()
         entry.copy(id = id)
     }
 
     suspend fun updateEntry(entry: FoodEntry) = withContext(Dispatchers.IO) {
         database.foodDao().update(entry)
+        refreshWidget()
     }
 
     suspend fun deleteEntry(entry: FoodEntry) = withContext(Dispatchers.IO) {
         database.foodDao().delete(entry)
+        refreshWidget()
     }
 
     /** Legt eine Kopie von [entry] mit neuem Zeitstempel an — gleiche Werte, kein Claude-Call. */
     suspend fun repeatEntry(entry: FoodEntry, timestamp: Long): FoodEntry = withContext(Dispatchers.IO) {
         val copy = entry.copy(id = 0, timestamp = timestamp)
         val id = database.foodDao().insert(copy)
+        refreshWidget()
         copy.copy(id = id)
     }
 
@@ -85,6 +105,7 @@ class FoodRepository(
             fatG = favorite.fatG,
         )
         val id = database.foodDao().insert(entry)
+        refreshWidget()
         entry.copy(id = id)
     }
 
@@ -121,11 +142,13 @@ class FoodRepository(
                 caloriesBurned = caloriesBurned,
             )
             val id = database.exerciseDao().insert(entry)
+            refreshWidget()
             entry.copy(id = id)
         }
 
     suspend fun deleteExerciseEntry(entry: ExerciseEntry) = withContext(Dispatchers.IO) {
         database.exerciseDao().delete(entry)
+        refreshWidget()
     }
 
     fun observeSessionCompletions(): Flow<List<SessionCompletionEntry>> =
@@ -303,6 +326,7 @@ class FoodRepository(
                 count++
             }
         }
+        refreshWidget()
         count
     }
 }

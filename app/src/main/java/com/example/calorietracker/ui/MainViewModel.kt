@@ -3,7 +3,6 @@ package com.example.calorietracker.ui
 import android.app.Application
 import android.net.Uri
 import androidx.core.content.FileProvider
-import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calorietracker.data.AppDatabase
@@ -20,7 +19,6 @@ import com.example.calorietracker.data.WeightEntry
 import com.example.calorietracker.data.calculateLiveTarget
 import com.example.calorietracker.network.IntervalsIcuApi
 import com.example.calorietracker.repository.FoodRepository
-import com.example.calorietracker.widget.CalorieWidget
 import java.io.File
 import java.text.SimpleDateFormat
 import java.time.LocalDate
@@ -109,7 +107,7 @@ data class PlanDayOption(
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     val settingsStore = SettingsStore(application)
-    private val repository = FoodRepository(AppDatabase.getInstance(application), settingsStore)
+    private val repository = FoodRepository(AppDatabase.getInstance(application), settingsStore, application)
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -303,16 +301,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Home-Widget aktualisieren, sobald sich die heutige Bilanz ändert — Rooms
-    // Flows lösen bei jedem Insert/Update/Delete/Import automatisch neu aus,
-    // eigene Refresh-Aufrufe an jeder Mutationsstelle sind so nicht nötig.
-    init {
-        viewModelScope.launch {
-            combine(dailyCalories, weekSummary) { _, _ -> Unit }.collect {
-                CalorieWidget().updateAll(application)
-            }
-        }
-    }
+    // Home-Widget-Refresh läuft jetzt direkt in FoodRepository bei jedem
+    // Schreibvorgang (siehe dort) — zuverlässiger als ein Flow-Collector hier,
+    // der nur lief, solange diese ViewModel-Instanz am Leben war. Bei reiner
+    // Widget-Nutzung (App nie aktiv offen gehalten) killt Android den Prozess
+    // auf manchen Geräten schnell, wodurch das Widget eingefroren blieb.
 
     private fun dayHeaderLabel(dayStart: Long): String = when (dayStart) {
         startOfDay(0) -> "Heute"
