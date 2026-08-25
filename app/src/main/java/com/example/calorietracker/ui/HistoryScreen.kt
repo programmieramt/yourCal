@@ -119,10 +119,6 @@ fun HistoryScreen(viewModel: MainViewModel) {
                 item(key = "header_${day.dayStart}") {
                     DayHeader(day = day, dailyTargetCalories = weeklyGoal / 7)
                 }
-                items(day.exerciseEntries, key = { "ex_${it.id}" }) { entry ->
-                    ExerciseEntryRow(entry = entry, onDelete = { viewModel.deleteExerciseEntry(entry) })
-                    HorizontalDivider()
-                }
                 items(day.entries, key = { "food_${it.id}" }) { entry ->
                     FoodEntryRow(
                         entry = entry,

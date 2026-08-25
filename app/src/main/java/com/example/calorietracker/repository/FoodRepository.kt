@@ -152,27 +152,6 @@ class FoodRepository(
         database.weightDao().delete(entry)
     }
 
-    fun observeExerciseSince(since: Long): Flow<List<ExerciseEntry>> =
-        database.exerciseDao().observeSince(since)
-
-    fun observeAllExercise(): Flow<List<ExerciseEntry>> = database.exerciseDao().observeAll()
-
-    suspend fun addExerciseEntry(caloriesBurned: Int): ExerciseEntry =
-        withContext(Dispatchers.IO) {
-            val entry = ExerciseEntry(
-                timestamp = System.currentTimeMillis(),
-                caloriesBurned = caloriesBurned,
-            )
-            val id = database.exerciseDao().insert(entry)
-            refreshWidget()
-            entry.copy(id = id)
-        }
-
-    suspend fun deleteExerciseEntry(entry: ExerciseEntry) = withContext(Dispatchers.IO) {
-        database.exerciseDao().delete(entry)
-        refreshWidget()
-    }
-
     fun observeSessionCompletions(): Flow<List<SessionCompletionEntry>> =
         database.sessionCompletionDao().observeAll()
 

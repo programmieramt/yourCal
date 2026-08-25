@@ -6,7 +6,6 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calorietracker.data.AppDatabase
-import com.example.calorietracker.data.ExerciseEntry
 import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
 import com.example.calorietracker.data.LiveCalorieTarget
@@ -44,14 +43,12 @@ private const val NOON_OFFSET_MILLIS = 12 * 60 * 60 * 1000L
 
 data class WeekSummary(
     val totalCalories: Int = 0,
-    val totalExerciseCalories: Int = 0,
     val totalProteinG: Double = 0.0,
     val totalCarbsG: Double = 0.0,
     val totalFatG: Double = 0.0,
     val goalCalories: Int = com.example.calorietracker.data.DEFAULT_WEEKLY_GOAL_CALORIES,
 ) {
-    /** Gegessen minus durch Sport verbrannt — das zählt fürs Wochenziel. */
-    val netCalories: Int get() = totalCalories - totalExerciseCalories
+    val netCalories: Int get() = totalCalories
     val remainingCalories: Int get() = goalCalories - netCalories
     val progress: Float
         get() = if (goalCalories <= 0) 0f else (netCalories.toFloat() / goalCalories).coerceIn(0f, 1.5f)
@@ -68,11 +65,9 @@ data class DayEntries(
     val dayStart: Long,
     val label: String,
     val foodCalories: Int,
-    val exerciseCalories: Int,
     val entries: List<FoodEntry>,
-    val exerciseEntries: List<ExerciseEntry>,
 ) {
-    val netCalories: Int get() = foodCalories - exerciseCalories
+    val netCalories: Int get() = foodCalories
 }
 
 /** Ein Kalenderwochen-Punkt (Montag-Start) für den Historie-Trend — unabhängig vom rollierenden Wochenziel-Fenster. */
@@ -198,13 +193,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) { all, _, resetAt -> all.filter { it.timestamp >= maxOf(startOfRollingWeek(), resetAt) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val exerciseEntries: StateFlow<List<ExerciseEntry>> = combine(
-        repository.observeAllExercise(),
-        rollingWindowTick,
-        settingsStore.weekResetAtFlow,
-    ) { all, _, resetAt -> all.filter { it.timestamp >= maxOf(startOfRollingWeek(), resetAt) } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     /**
      * Setzt nur die aktuelle Wochenbilanz zurück — löscht keine Einträge, verschiebt
      * lediglich die "since"-Grenze für weekEntries/exerciseEntries auf jetzt. Ältere
@@ -248,17 +236,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val weekSummary: StateFlow<WeekSummary> = combine(
         weekEntries,
-        exerciseEntries,
         settingsStore.weeklyGoalFlow,
         liveCalorieTarget,
-    ) { entries, exercise, manualGoal, liveTarget ->
+    ) { entries, manualGoal, liveTarget ->
         // Für zukünftige Tage vorgeplante Einträge zählen erst mit, wenn ihr Tag
         // wirklich erreicht ist — sonst würde die Bilanz Dinge zeigen, die noch
         // gar nicht gegessen wurden.
         val consumed = entries.filter { it.timestamp <= System.currentTimeMillis() }
         WeekSummary(
             totalCalories = consumed.sumOf { it.calories },
-            totalExerciseCalories = exercise.sumOf { it.caloriesBurned },
             totalProteinG = consumed.sumOf { it.proteinG },
             totalCarbsG = consumed.sumOf { it.carbsG },
             totalFatG = consumed.sumOf { it.fatG },
@@ -282,20 +268,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return cal.timeInMillis
     }
 
-    /** Netto-Kalorien (gegessen minus Sport) pro Tag im rollierenden 7-Tage-Fenster, älteste zuerst. */
-    val dailyCalories: StateFlow<List<DayCalories>> = combine(weekEntries, exerciseEntries) { entries, exercise ->
+    /** Kalorien pro Tag im rollierenden 7-Tage-Fenster, älteste zuerst. */
+    val dailyCalories: StateFlow<List<DayCalories>> = weekEntries.map { entries ->
         (6 downTo 0).map { daysAgo ->
             val dayStart = startOfDay(daysAgo)
             val dayEnd = dayStart + DAY_MILLIS
             val food = entries
                 .filter { it.timestamp in dayStart until dayEnd }
                 .sumOf { it.calories }
-            val burned = exercise
-                .filter { it.timestamp in dayStart until dayEnd }
-                .sumOf { it.caloriesBurned }
             DayCalories(
                 label = dayLabelFormat.format(Date(dayStart)),
-                calories = food - burned,
+                calories = food,
                 isToday = daysAgo == 0,
             )
         }
@@ -313,36 +296,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         else -> dayHeaderFormat.format(Date(dayStart))
     }
 
-    private fun groupByDay(food: List<FoodEntry>, exercise: List<ExerciseEntry>): List<DayEntries> {
+    private fun groupByDay(food: List<FoodEntry>): List<DayEntries> {
         val foodByDay = food.groupBy { dayStartOf(it.timestamp) }
-        val exerciseByDay = exercise.groupBy { dayStartOf(it.timestamp) }
-        return (foodByDay.keys + exerciseByDay.keys)
+        return foodByDay.keys
             .sortedDescending()
             .map { dayStart ->
                 val dayFood = foodByDay[dayStart].orEmpty()
-                val dayExercise = exerciseByDay[dayStart].orEmpty()
                 DayEntries(
                     dayStart = dayStart,
                     label = dayHeaderLabel(dayStart),
                     foodCalories = dayFood.sumOf { it.calories },
-                    exerciseCalories = dayExercise.sumOf { it.caloriesBurned },
                     entries = dayFood,
-                    exerciseEntries = dayExercise,
                 )
             }
     }
 
     /** Einträge der letzten 7 Tage, nach Tag gruppiert (neuester Tag zuerst). */
-    val entriesByDay: StateFlow<List<DayEntries>> = combine(weekEntries, exerciseEntries) { entries, exercise ->
-        groupByDay(entries, exercise)
+    val entriesByDay: StateFlow<List<DayEntries>> = weekEntries.map { entries ->
+        groupByDay(entries)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /** Alle jemals erfassten Einträge, nach Tag gruppiert (neuester Tag zuerst) — für die Historie. */
-    val historyByDay: StateFlow<List<DayEntries>> = combine(
-        repository.observeAllEntries(),
-        repository.observeAllExercise(),
-    ) { entries, exercise ->
-        groupByDay(entries, exercise)
+    val historyByDay: StateFlow<List<DayEntries>> = repository.observeAllEntries().map { entries ->
+        groupByDay(entries)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val weekLabelFormat = SimpleDateFormat("dd.MM.", Locale.GERMAN)
@@ -364,25 +340,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** Netto-Kalorien und Ø-Gewicht pro Kalenderwoche, älteste zuerst — für den Historie-Trend. */
     val weeklyTrend: StateFlow<List<WeeklyPoint>> = combine(
         repository.observeAllEntries(),
-        repository.observeAllExercise(),
         repository.observeWeightEntries(),
-    ) { entries, exercise, weights ->
+    ) { entries, weights ->
         val consumed = entries.filter { it.timestamp <= System.currentTimeMillis() }
         val foodByWeek = consumed.groupBy { mondayStartOf(it.timestamp) }
-        val exerciseByWeek = exercise.groupBy { mondayStartOf(it.timestamp) }
         val weightByWeek = weights.groupBy { mondayStartOf(it.timestamp) }
-        (foodByWeek.keys + exerciseByWeek.keys + weightByWeek.keys)
+        (foodByWeek.keys + weightByWeek.keys)
             .sorted()
             .map { weekStart ->
                 val weekFood = foodByWeek[weekStart].orEmpty().sumOf { it.calories }
-                val weekBurned = exerciseByWeek[weekStart].orEmpty().sumOf { it.caloriesBurned }
                 val weekWeights = weightByWeek[weekStart].orEmpty()
                 val bodyFatValues = weekWeights.mapNotNull { it.bodyFatPercent }
                 val muscleMassValues = weekWeights.mapNotNull { it.muscleMassKg }
                 WeeklyPoint(
                     weekStart = weekStart,
                     label = weekLabelFormat.format(Date(weekStart)),
-                    netCalories = weekFood - weekBurned,
+                    netCalories = weekFood,
                     avgWeightKg = if (weekWeights.isEmpty()) null else weekWeights.map { it.weightKg }.average(),
                     avgBodyFatPercent = bodyFatValues.takeIf { it.isNotEmpty() }?.average(),
                     avgMuscleMassKg = muscleMassValues.takeIf { it.isNotEmpty() }?.average(),
@@ -475,15 +448,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun deleteWeightEntry(entry: WeightEntry) {
         viewModelScope.launch { repository.deleteWeightEntry(entry) }
-    }
-
-    fun addExerciseEntry(caloriesBurned: Int) {
-        if (caloriesBurned <= 0) return
-        viewModelScope.launch { repository.addExerciseEntry(caloriesBurned) }
-    }
-
-    fun deleteExerciseEntry(entry: ExerciseEntry) {
-        viewModelScope.launch { repository.deleteExerciseEntry(entry) }
     }
 
     /** Abgehakte Trainingsplan-Sessions als (Wochennummer, Session-Index)-Paare. */

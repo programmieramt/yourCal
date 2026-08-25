@@ -79,10 +79,9 @@ class CalorieWidget : GlanceAppWidget() {
         val now = System.currentTimeMillis()
 
         val food = db.foodDao().observeSince(dayStart).first().filter { it.timestamp <= now }
-        val exercise = db.exerciseDao().observeSince(dayStart).first()
         val weeklyGoal = settingsStore.weeklyGoalFlow.first()
 
-        val net = food.sumOf { it.calories } - exercise.sumOf { it.caloriesBurned }
+        val net = food.sumOf { it.calories }
         val target = weeklyGoal / 7
         val remaining = target - net
 

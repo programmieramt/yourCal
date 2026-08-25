@@ -24,7 +24,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -72,7 +71,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.calorietracker.data.ExerciseEntry
 import com.example.calorietracker.data.FavoriteEntry
 import com.example.calorietracker.data.FoodEntry
 import java.text.SimpleDateFormat
@@ -97,7 +95,6 @@ fun HomeScreen(
     var selectedDayStart by rememberSaveable { mutableStateOf(dayOptions.first().dayStart) }
     var description by rememberSaveable { mutableStateOf("") }
     var selectedFavorite by remember { mutableStateOf<FavoriteEntry?>(null) }
-    var exerciseCaloriesInput by rememberSaveable { mutableStateOf("") }
     var editingEntry by remember { mutableStateOf<FoodEntry?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val descriptionFocusRequester = remember { FocusRequester() }
@@ -161,17 +158,6 @@ fun HomeScreen(
                 keyboardController?.hide()
             }
         }
-        val parsedExerciseCalories = exerciseCaloriesInput.toIntOrNull()
-        val submitExercise: () -> Unit = {
-            val calories = parsedExerciseCalories
-            if (calories != null && calories > 0) {
-                viewModel.addExerciseEntry(calories)
-                exerciseCaloriesInput = ""
-                focusManager.clearFocus()
-                keyboardController?.hide()
-            }
-        }
-
         // Ein einziger LazyColumn für den ganzen Screen: eine LazyColumn *innerhalb*
         // einer scrollbaren Column würde mit unendlicher Höhen-Constraint abstürzen,
         // deshalb sind Karte/Chart/Eingabe/Liste hier alles Items derselben Liste.
@@ -270,41 +256,7 @@ fun HomeScreen(
                 }
             }
 
-            // 2. Verbrannte Kalorien
-            item {
-                Column {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Sport",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(
-                            value = exerciseCaloriesInput,
-                            onValueChange = { exerciseCaloriesInput = it },
-                            label = { Text("Verbrannte kcal") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Number,
-                                imeAction = ImeAction.Send,
-                            ),
-                            keyboardActions = KeyboardActions(onSend = { submitExercise() }),
-                            modifier = Modifier.weight(1f),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(
-                            onClick = submitExercise,
-                            enabled = parsedExerciseCalories != null && parsedExerciseCalories > 0,
-                        ) {
-                            Text("Eintragen")
-                        }
-                    }
-                }
-            }
-
-            // 3. Wochenkalorien
+            // 2. Wochenkalorien
             item {
                 Column {
                     Spacer(modifier = Modifier.height(20.dp))
@@ -333,14 +285,10 @@ fun HomeScreen(
                 }
             }
 
-            // 4. Lebensmittelliste
+            // 3. Lebensmittelliste
             entriesByDay.forEach { day ->
                 item(key = "header_${day.dayStart}") {
                     DayHeader(day = day, dailyTargetCalories = summary.dailyTargetCalories)
-                }
-                items(day.exerciseEntries, key = { "ex_${it.id}" }) { entry ->
-                    ExerciseEntryRow(entry = entry, onDelete = { viewModel.deleteExerciseEntry(entry) })
-                    HorizontalDivider()
                 }
                 items(day.entries, key = { "food_${it.id}" }) { entry ->
                     FoodEntryRow(
@@ -364,12 +312,7 @@ private fun WeekProgressCard(summary: WeekSummary) {
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            val headline = if (summary.totalExerciseCalories > 0) {
-                "${summary.netCalories} (${summary.totalCalories}-${summary.totalExerciseCalories}) / " +
-                    "${summary.goalCalories} kcal"
-            } else {
-                "${summary.netCalories} / ${summary.goalCalories} kcal"
-            }
+            val headline = "${summary.netCalories} / ${summary.goalCalories} kcal"
             Text(
                 headline,
                 style = MaterialTheme.typography.titleLarge,
@@ -518,11 +461,7 @@ fun DayHeader(day: DayEntries, dailyTargetCalories: Int) {
             fontWeight = FontWeight.Bold,
         )
         Column(horizontalAlignment = Alignment.End, modifier = Modifier.weight(1f, fill = false)) {
-            val text = if (day.exerciseCalories > 0) {
-                "${day.netCalories} (${day.foodCalories}-${day.exerciseCalories}) kcal"
-            } else {
-                "${day.netCalories} kcal"
-            }
+            val text = "${day.netCalories} kcal"
             Text(
                 text,
                 style = MaterialTheme.typography.titleSmall,
@@ -579,35 +518,6 @@ fun FoodEntryRow(
         }
         IconButton(onClick = onFavorite) {
             Icon(Icons.Filled.Star, contentDescription = "Als Favorit speichern")
-        }
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, contentDescription = "Löschen")
-        }
-    }
-}
-
-@Composable
-fun ExerciseEntryRow(entry: ExerciseEntry, onDelete: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Icon(
-            Icons.AutoMirrored.Filled.DirectionsRun,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text("Sport", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                "-${entry.caloriesBurned} kcal · ${timeFormat.format(Date(entry.timestamp))}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
         IconButton(onClick = onDelete) {
             Icon(Icons.Filled.Delete, contentDescription = "Löschen")
