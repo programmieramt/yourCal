@@ -13,9 +13,14 @@ import com.example.calorietracker.data.WeightEntry
 import com.example.calorietracker.network.ClaudeApi
 import com.example.calorietracker.network.ClaudeApiException
 import com.example.calorietracker.widget.CalorieWidget
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -25,17 +30,32 @@ class FoodRepository(
     private val settingsStore: SettingsStore,
     private val context: Context,
 ) {
+    private val repositoryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var refreshWidgetJob: Job? = null
+
     /**
-     * Aktualisiert das Home-Widget direkt bei jedem Schreibvorgang, statt sich auf
-     * einen Flow-Collector im ViewModel zu verlassen — der lief nur, solange die
+     * Aktualisiert das Home-Widget bei jedem Schreibvorgang, statt sich auf einen
+     * Flow-Collector im ViewModel zu verlassen — der lief nur, solange die
      * App-Instanz am Leben war. Killt Android den Prozess im Hintergrund (bei
      * Widget-Nutzung ohne die App offen zu halten, auf manchen ROMs sehr
-     * aggressiv), blieb das Widget sonst eingefroren. Direkt hier aufgerufen,
-     * läuft es garantiert im selben Prozess, der gerade den Schreibvorgang macht.
+     * aggressiv), blieb das Widget sonst eingefroren.
+     *
+     * Debounced statt bei jedem Aufruf sofort ein Update anzustoßen: Glance
+     * queued jeden updateAll()-Aufruf als eigenen WorkManager-Job, und die
+     * laufen nicht garantiert in der Reihenfolge fertig, in der sie ausgelöst
+     * wurden — bei mehreren Einträgen kurz hintereinander konnte so ein älterer
+     * (noch unvollständiger) Stand einen bereits fertigen neueren überschreiben,
+     * das jeweils zuletzt Hinzugefügte fehlte dann im Widget. Der Cancel/Restart
+     * hier sorgt dafür, dass bei einer Schreib-Serie nur ein einziger Job für den
+     * jeweils letzten Stand läuft.
      */
-    private suspend fun refreshWidget() = withContext(Dispatchers.IO) {
-        runCatching { CalorieWidget().updateAll(context) }
-            .onFailure { Log.e("FoodRepository", "Widget-Refresh fehlgeschlagen", it) }
+    private fun refreshWidget() {
+        refreshWidgetJob?.cancel()
+        refreshWidgetJob = repositoryScope.launch {
+            delay(800)
+            runCatching { CalorieWidget().updateAll(context) }
+                .onFailure { Log.e("FoodRepository", "Widget-Refresh fehlgeschlagen", it) }
+        }
     }
 
     fun observeEntriesSince(since: Long): Flow<List<FoodEntry>> =
