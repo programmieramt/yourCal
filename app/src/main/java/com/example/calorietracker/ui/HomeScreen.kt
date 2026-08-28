@@ -96,6 +96,7 @@ fun HomeScreen(
     var description by rememberSaveable { mutableStateOf("") }
     var selectedFavorite by remember { mutableStateOf<FavoriteEntry?>(null) }
     var editingEntry by remember { mutableStateOf<FoodEntry?>(null) }
+    var renamingFavorite by remember { mutableStateOf<FavoriteEntry?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val descriptionFocusRequester = remember { FocusRequester() }
 
@@ -113,6 +114,17 @@ fun HomeScreen(
             onSave = {
                 viewModel.updateEntry(it)
                 editingEntry = null
+            },
+        )
+    }
+
+    renamingFavorite?.let { favorite ->
+        RenameFavoriteDialog(
+            favorite = favorite,
+            onDismiss = { renamingFavorite = null },
+            onSave = { newName ->
+                viewModel.renameFavorite(favorite, newName)
+                renamingFavorite = null
             },
         )
     }
@@ -207,6 +219,7 @@ fun HomeScreen(
                                         description = favorite.description
                                         selectedFavorite = favorite
                                     },
+                                    onRename = { renamingFavorite = favorite },
                                     onRemove = { viewModel.removeFavorite(favorite) },
                                 )
                             }
@@ -529,6 +542,7 @@ fun FoodEntryRow(
 private fun FavoriteChip(
     favorite: FavoriteEntry,
     onClick: () -> Unit,
+    onRename: () -> Unit,
     onRemove: () -> Unit,
 ) {
     AssistChip(
@@ -539,6 +553,15 @@ private fun FavoriteChip(
                 style = MaterialTheme.typography.bodySmall,
             )
         },
+        leadingIcon = {
+            Icon(
+                Icons.Filled.Edit,
+                contentDescription = "Umbenennen",
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable(onClick = onRename),
+            )
+        },
         trailingIcon = {
             Icon(
                 Icons.Filled.Close,
@@ -547,6 +570,41 @@ private fun FavoriteChip(
                     .size(16.dp)
                     .clickable(onClick = onRemove),
             )
+        },
+    )
+}
+
+@Composable
+private fun RenameFavoriteDialog(
+    favorite: FavoriteEntry,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit,
+) {
+    var name by remember(favorite.id) { mutableStateOf(favorite.description) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Favorit umbenennen") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Anzeigename") },
+                singleLine = true,
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(name) },
+                enabled = name.isNotBlank(),
+            ) {
+                Text("Speichern")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Abbrechen")
+            }
         },
     )
 }

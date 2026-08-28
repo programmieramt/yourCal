@@ -427,6 +427,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.removeFavorite(favorite) }
     }
 
+    fun renameFavorite(favorite: FavoriteEntry, newDescription: String) {
+        if (newDescription.isBlank()) return
+        viewModelScope.launch { repository.renameFavorite(favorite, newDescription.trim()) }
+    }
+
     fun addFromFavorite(favorite: FavoriteEntry, targetDayStart: Long = startOfDay(0)) {
         val timestamp = timestampFor(targetDayStart)
         viewModelScope.launch {
