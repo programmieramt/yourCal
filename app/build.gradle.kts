@@ -5,6 +5,23 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+// versionCode: total commit count (strictly increasing, works whether or not HEAD is tagged).
+// versionName: nearest git tag, e.g. "0.17.1", with "-<n>-g<sha>[-dirty]" appended when HEAD
+// isn't exactly on a tag. Requires full history (CI checkout must use fetch-depth: 0).
+fun runGit(vararg args: String): String = try {
+    val process = ProcessBuilder(listOf("git") + args).start()
+    val output = process.inputStream.bufferedReader().readText().trim()
+    process.waitFor()
+    output
+} catch (e: Exception) {
+    ""
+}
+
+fun gitVersionCode(): Int = runGit("rev-list", "--count", "HEAD").toIntOrNull() ?: 1
+
+fun gitVersionName(): String =
+    runGit("describe", "--tags", "--always", "--dirty").removePrefix("v").ifBlank { "0.0.0" }
+
 android {
     namespace = "com.example.calorietracker"
     compileSdk = 36
@@ -13,8 +30,8 @@ android {
         applicationId = "com.example.calorietracker"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = gitVersionCode()
+        versionName = gitVersionName()
     }
 
     signingConfigs {
