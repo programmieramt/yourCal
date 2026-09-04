@@ -286,7 +286,7 @@ fun HomeScreen(
                     WeekBarChart(days = dailyCalories, dailyTargetCalories = summary.dailyTargetCalories)
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(thickness = 1.5.dp)
+                    HorizontalDivider(thickness = 3.dp)
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
@@ -311,7 +311,7 @@ fun HomeScreen(
                         onFavorite = { viewModel.addFavorite(entry) },
                         onRepeat = { viewModel.repeatEntry(entry) },
                     )
-                    HorizontalDivider(thickness = 1.5.dp)
+                    HorizontalDivider(thickness = 3.dp)
                 }
             }
         }
@@ -345,7 +345,7 @@ private fun WeekProgressCard(summary: WeekSummary) {
             progress = { summary.progress.coerceAtMost(1f) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(14.dp),
+                .height(20.dp),
         )
         Spacer(modifier = Modifier.height(12.dp))
         Row(

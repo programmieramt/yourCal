@@ -82,7 +82,7 @@ fun HistoryScreen(viewModel: MainViewModel) {
 
                     if (weeklyTrend.any { it.avgBodyFatPercent != null }) {
                         Spacer(modifier = Modifier.height(24.dp))
-                        HorizontalDivider(thickness = 1.5.dp)
+                        HorizontalDivider(thickness = 3.dp)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             "Körperzusammensetzung",
@@ -94,7 +94,7 @@ fun HistoryScreen(viewModel: MainViewModel) {
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(thickness = 1.5.dp)
+                    HorizontalDivider(thickness = 3.dp)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Alle Einträge",
@@ -127,7 +127,7 @@ fun HistoryScreen(viewModel: MainViewModel) {
                         onFavorite = { viewModel.addFavorite(entry) },
                         onRepeat = { viewModel.repeatEntry(entry) },
                     )
-                    HorizontalDivider(thickness = 1.5.dp)
+                    HorizontalDivider(thickness = 3.dp)
                 }
             }
         }
@@ -184,13 +184,13 @@ private fun WeightCalorieTrendChart(points: List<WeeklyPoint>, weeklyGoal: Int) 
                             color = lineColor,
                             start = Offset(indexA * stepX, yFor(weightA)),
                             end = Offset(indexB * stepX, yFor(weightB)),
-                            strokeWidth = 3.5.dp.toPx(),
+                            strokeWidth = 5.dp.toPx(),
                             cap = StrokeCap.Round,
                         )
                     }
                 }
                 weightPoints.forEach { (index, weight) ->
-                    drawCircle(color = lineColor, radius = 5.dp.toPx(), center = Offset(index * stepX, yFor(weight)))
+                    drawCircle(color = lineColor, radius = 7.dp.toPx(), center = Offset(index * stepX, yFor(weight)))
                 }
             }
         } else {
@@ -228,7 +228,7 @@ private fun WeightCalorieTrendChart(points: List<WeeklyPoint>, weeklyGoal: Int) 
                 color = gridColor,
                 start = Offset(0f, goalY),
                 end = Offset(size.width, goalY),
-                strokeWidth = 2.dp.toPx(),
+                strokeWidth = 3.dp.toPx(),
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f)),
             )
 
@@ -298,13 +298,13 @@ private fun BodyFatTrendChart(points: List<WeeklyPoint>) {
                         color = lineColor,
                         start = Offset(indexA * stepX, yFor(valueA)),
                         end = Offset(indexB * stepX, yFor(valueB)),
-                        strokeWidth = 3.5.dp.toPx(),
+                        strokeWidth = 5.dp.toPx(),
                         cap = StrokeCap.Round,
                     )
                 }
             }
             fatPoints.forEach { (index, value) ->
-                drawCircle(color = lineColor, radius = 5.dp.toPx(), center = Offset(index * stepX, yFor(value)))
+                drawCircle(color = lineColor, radius = 7.dp.toPx(), center = Offset(index * stepX, yFor(value)))
             }
         }
     } else {

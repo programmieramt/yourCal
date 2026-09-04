@@ -162,7 +162,7 @@ fun WeightScreen(viewModel: MainViewModel) {
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                HorizontalDivider(thickness = 1.5.dp)
+                HorizontalDivider(thickness = 3.dp)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
@@ -176,7 +176,7 @@ fun WeightScreen(viewModel: MainViewModel) {
 
             items(weightEntries, key = { it.id }) { entry ->
                 WeightRow(entry = entry, onDelete = { viewModel.deleteWeightEntry(entry) })
-                HorizontalDivider(thickness = 1.5.dp)
+                HorizontalDivider(thickness = 3.dp)
             }
         }
     }
@@ -213,7 +213,7 @@ private fun WeightLineChart(entries: List<WeightEntry>) {
             color = gridColor,
             start = Offset(0f, avgY),
             end = Offset(size.width, avgY),
-            strokeWidth = 2.dp.toPx(),
+            strokeWidth = 3.dp.toPx(),
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)),
         )
 
@@ -223,12 +223,12 @@ private fun WeightLineChart(entries: List<WeightEntry>) {
                 color = lineColor,
                 start = points[i],
                 end = points[i + 1],
-                strokeWidth = 3.5.dp.toPx(),
+                strokeWidth = 5.dp.toPx(),
                 cap = StrokeCap.Round,
             )
         }
         points.forEach { point ->
-            drawCircle(color = lineColor, radius = 5.dp.toPx(), center = point)
+            drawCircle(color = lineColor, radius = 7.dp.toPx(), center = point)
         }
     }
 }

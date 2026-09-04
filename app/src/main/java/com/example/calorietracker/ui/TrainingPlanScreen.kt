@@ -117,7 +117,7 @@ fun TrainingPlanScreen(viewModel: MainViewModel) {
 
             item {
                 Spacer(modifier = Modifier.height(24.dp))
-                HorizontalDivider(thickness = 1.5.dp)
+                HorizontalDivider(thickness = 3.dp)
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Alle Wochen", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
@@ -133,7 +133,7 @@ fun TrainingPlanScreen(viewModel: MainViewModel) {
                     onToggle = { expandedWeek = if (expandedWeek == week.week) -1 else week.week },
                     onToggleSession = onToggleSession,
                 )
-                HorizontalDivider(thickness = 1.5.dp)
+                HorizontalDivider(thickness = 3.dp)
             }
         }
     }

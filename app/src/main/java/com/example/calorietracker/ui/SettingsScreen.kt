@@ -196,7 +196,7 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(thickness = 1.5.dp)
+            HorizontalDivider(thickness = 3.dp)
             Spacer(modifier = Modifier.height(24.dp))
 
             Text("intervals.icu (Erholungs-Ampel)", style = MaterialTheme.typography.titleMedium)
@@ -247,7 +247,7 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(thickness = 1.5.dp)
+            HorizontalDivider(thickness = 3.dp)
             Spacer(modifier = Modifier.height(24.dp))
 
             Text("Daten-Export", style = MaterialTheme.typography.titleMedium)
@@ -308,7 +308,7 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(thickness = 1.5.dp)
+            HorizontalDivider(thickness = 3.dp)
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(

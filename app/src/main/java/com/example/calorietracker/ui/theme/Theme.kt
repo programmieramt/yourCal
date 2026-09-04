@@ -12,18 +12,22 @@ import androidx.compose.ui.graphics.Color
 // Ghosting). Läuft die App jetzt auf einem normalen Display, darf sie Farbe
 // haben.
 //
-// Primary/error/surfaceTint/inversePrimary bewusst kräftiger (heller, mehr
-// Pop) als ein reines Corporate-Petrol — auf einem Farb-E-Ink-Panel (Boox
-// Palma 2 Pro, Kaleido-Technik) wirken Farben grundsätzlich blasser als auf
-// einem LCD, ein kräftigerer Ausgangston kommt dort erst richtig als Farbe
-// an statt in Grau zu verschwimmen. Kontrast onPrimary/primary bleibt WCAG
-// AA (~5:1).
+// Primary/error/surfaceTint/inversePrimary bewusst deutlich kräftiger (viel
+// heller, viel mehr Pop) als ein reines Corporate-Petrol — auf einem
+// Farb-E-Ink-Panel (Boox Palma 2 Pro, Kaleido-Technik) wirken Farben
+// grundsätzlich blasser als auf einem LCD, ein kräftigerer Ausgangston kommt
+// dort erst richtig als Farbe an statt in Grau zu verschwimmen. Ein erster,
+// vorsichtiger Versuch (nur ~12% heller) war auf dem Gerät praktisch nicht
+// sichtbar — deshalb hier ein großer statt eines kleinen Schritts.
+// onPrimary auf dunkle Tinte statt Weiß umgestellt, damit der Kontrast auch
+// bei einem viel helleren primary sicher WCAG AA bleibt (dunkler Text auf
+// kräftiger Fläche statt heller Text, der bei viel Helligkeit knapp wird).
 private val LightColors = lightColorScheme(
-    primary = Color(0xFF007780),
-    onPrimary = Color(0xFFFFFFFF),
+    primary = Color(0xFF00A7B5),
+    onPrimary = Color(0xFF00252A),
     primaryContainer = Color(0xFF9EEFFD),
     onPrimaryContainer = Color(0xFF001F24),
-    inversePrimary = Color(0xFF00E5FF),
+    inversePrimary = Color(0xFF00F0FF),
     secondary = Color(0xFF4A6367),
     onSecondary = Color(0xFFFFFFFF),
     secondaryContainer = Color(0xFFCCE8EC),
@@ -38,14 +42,14 @@ private val LightColors = lightColorScheme(
     onSurface = Color(0xFF191C1C),
     surfaceVariant = Color(0xFFD5E5E7),
     onSurfaceVariant = Color(0xFF3F4849),
-    surfaceTint = Color(0xFF007780),
+    surfaceTint = Color(0xFF00A7B5),
     inverseSurface = Color(0xFF2D3132),
     inverseOnSurface = Color(0xFFEFF1F1),
     // Bewusst dieselbe Tinte wie primary statt Alarm-Rot: eine Zielüberschreitung
     // ist eine Information, kein Fehler, den man verstecken/vermeiden sollte.
     // Das galt schon beim Graustufen-Theme und ändert sich mit der Farbe nicht.
-    error = Color(0xFF007780),
-    onError = Color(0xFFFFFFFF),
+    error = Color(0xFF00A7B5),
+    onError = Color(0xFF00252A),
     errorContainer = Color(0xFF9EEFFD),
     onErrorContainer = Color(0xFF001F24),
     outline = Color(0xFF6F797A),
@@ -54,11 +58,11 @@ private val LightColors = lightColorScheme(
 )
 
 private val DarkColors = darkColorScheme(
-    primary = Color(0xFF00E5FF),
+    primary = Color(0xFF00F0FF),
     onPrimary = Color(0xFF00363D),
     primaryContainer = Color(0xFF004F58),
     onPrimaryContainer = Color(0xFF9EEFFD),
-    inversePrimary = Color(0xFF007780),
+    inversePrimary = Color(0xFF00A7B5),
     secondary = Color(0xFFB1CBCF),
     onSecondary = Color(0xFF1C3437),
     secondaryContainer = Color(0xFF324B4E),
@@ -73,10 +77,10 @@ private val DarkColors = darkColorScheme(
     onSurface = Color(0xFFDEE3E3),
     surfaceVariant = Color(0xFF3F4849),
     onSurfaceVariant = Color(0xFFBFC8CA),
-    surfaceTint = Color(0xFF00E5FF),
+    surfaceTint = Color(0xFF00F0FF),
     inverseSurface = Color(0xFFDEE3E3),
     inverseOnSurface = Color(0xFF191C1C),
-    error = Color(0xFF00E5FF),
+    error = Color(0xFF00F0FF),
     onError = Color(0xFF00363D),
     errorContainer = Color(0xFF004F58),
     onErrorContainer = Color(0xFF9EEFFD),
