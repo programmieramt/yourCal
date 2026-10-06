@@ -43,9 +43,6 @@ private const val NOON_OFFSET_MILLIS = 12 * 60 * 60 * 1000L
 
 data class WeekSummary(
     val totalCalories: Int = 0,
-    val totalProteinG: Double = 0.0,
-    val totalCarbsG: Double = 0.0,
-    val totalFatG: Double = 0.0,
     val goalCalories: Int = com.example.calorietracker.data.DEFAULT_WEEKLY_GOAL_CALORIES,
 ) {
     val netCalories: Int get() = totalCalories
@@ -59,6 +56,13 @@ data class DayCalories(
     val label: String,
     val calories: Int,
     val isToday: Boolean,
+)
+
+/** Makros für einen einzelnen Tag (aktuell nur für "Heute" verwendet). */
+data class DayMacros(
+    val proteinG: Double = 0.0,
+    val carbsG: Double = 0.0,
+    val fatG: Double = 0.0,
 )
 
 data class DayEntries(
@@ -234,25 +238,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
-    val weekSummary: StateFlow<WeekSummary> = combine(
-        weekEntries,
+    /** Live-Ziel aus dem Trainingsplan hat Vorrang vor dem manuellen Wochenziel, sobald es berechnet werden kann. */
+    val effectiveWeeklyGoal: StateFlow<Int> = combine(
         settingsStore.weeklyGoalFlow,
         liveCalorieTarget,
-    ) { entries, manualGoal, liveTarget ->
-        // Für zukünftige Tage vorgeplante Einträge zählen erst mit, wenn ihr Tag
-        // wirklich erreicht ist — sonst würde die Bilanz Dinge zeigen, die noch
-        // gar nicht gegessen wurden.
-        val consumed = entries.filter { it.timestamp <= System.currentTimeMillis() }
-        WeekSummary(
-            totalCalories = consumed.sumOf { it.calories },
-            totalProteinG = consumed.sumOf { it.proteinG },
-            totalCarbsG = consumed.sumOf { it.carbsG },
-            totalFatG = consumed.sumOf { it.fatG },
-            // Live-Ziel aus dem Trainingsplan hat Vorrang vor dem manuellen
-            // Wochenziel, sobald es berechnet werden kann.
-            goalCalories = liveTarget?.targetKcalPerWeek ?: manualGoal,
+    ) { manualGoal, liveTarget -> liveTarget?.targetKcalPerWeek ?: manualGoal }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            com.example.calorietracker.data.DEFAULT_WEEKLY_GOAL_CALORIES,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WeekSummary())
 
     private val dayLabelFormat = SimpleDateFormat("EEE", Locale.GERMAN)
     private val dayHeaderFormat = SimpleDateFormat("EEEE, dd.MM.", Locale.GERMAN)
@@ -268,21 +263,57 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return cal.timeInMillis
     }
 
-    /** Kalorien pro Tag im rollierenden 7-Tage-Fenster, älteste zuerst. */
-    val dailyCalories: StateFlow<List<DayCalories>> = weekEntries.map { entries ->
+    /**
+     * Kalorien pro Tag im rollierenden 7-Tage-Fenster, älteste zuerst. Tage
+     * (außer "Heute") mit unter 1000 geloggten kcal wurden vermutlich nicht
+     * vollständig erfasst — damit so ein Tag die Wochenstatistik nicht mit
+     * einem riesigen, falschen Fehlbetrag verzerrt, wird für ihn ersatzweise
+     * das Tagesziel angenommen. "Heute" bleibt davon ausgenommen, der Tag ist
+     * ja noch nicht vorbei und soll den echten Live-Stand zeigen.
+     */
+    val dailyCalories: StateFlow<List<DayCalories>> = combine(
+        weekEntries,
+        effectiveWeeklyGoal,
+    ) { entries, goal ->
+        val dailyTarget = goal / 7
         (6 downTo 0).map { daysAgo ->
             val dayStart = startOfDay(daysAgo)
             val dayEnd = dayStart + DAY_MILLIS
+            val isToday = daysAgo == 0
             val food = entries
                 .filter { it.timestamp in dayStart until dayEnd }
                 .sumOf { it.calories }
+            val effectiveFood = if (!isToday && food < 1000) dailyTarget else food
             DayCalories(
                 label = dayLabelFormat.format(Date(dayStart)),
-                calories = food,
-                isToday = daysAgo == 0,
+                calories = effectiveFood,
+                isToday = isToday,
             )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Wochensumme aus den (ggf. aufgefüllten) Tageswerten oben — bleibt damit konsistent mit dem Balkendiagramm. */
+    val weekSummary: StateFlow<WeekSummary> = combine(
+        dailyCalories,
+        effectiveWeeklyGoal,
+    ) { days, goal ->
+        WeekSummary(
+            totalCalories = days.sumOf { it.calories },
+            goalCalories = goal,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), WeekSummary())
+
+    /** Makros für "Heute" — bewusst nicht die Wochensumme, damit die Zahl täglich aussagekräftig bleibt. */
+    val todayMacros: StateFlow<DayMacros> = weekEntries.map { entries ->
+        val dayStart = startOfDay(0)
+        val dayEnd = dayStart + DAY_MILLIS
+        val today = entries.filter { it.timestamp in dayStart until dayEnd }
+        DayMacros(
+            proteinG = today.sumOf { it.proteinG },
+            carbsG = today.sumOf { it.carbsG },
+            fatG = today.sumOf { it.fatG },
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DayMacros())
 
     // Home-Widget-Refresh läuft jetzt direkt in FoodRepository bei jedem
     // Schreibvorgang (siehe dort) — zuverlässiger als ein Flow-Collector hier,

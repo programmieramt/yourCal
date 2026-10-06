@@ -85,6 +85,7 @@ fun HomeScreen(
     quickAddTrigger: Int = 0,
 ) {
     val summary by viewModel.weekSummary.collectAsState()
+    val todayMacros by viewModel.todayMacros.collectAsState()
     val dailyCalories by viewModel.dailyCalories.collectAsState()
     val entriesByDay by viewModel.entriesByDay.collectAsState()
     val favorites by viewModel.favorites.collectAsState()
@@ -273,7 +274,7 @@ fun HomeScreen(
             item {
                 Column {
                     Spacer(modifier = Modifier.height(20.dp))
-                    WeekProgressCard(summary)
+                    WeekProgressCard(summary, todayMacros)
 
                     Spacer(modifier = Modifier.height(20.dp))
 
@@ -319,7 +320,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun WeekProgressCard(summary: WeekSummary) {
+private fun WeekProgressCard(summary: WeekSummary, todayMacros: DayMacros) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -348,20 +349,28 @@ private fun WeekProgressCard(summary: WeekSummary) {
                 .height(20.dp),
         )
         Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            "Makros heute",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-            MacroChip("Protein", summary.totalProteinG)
-            MacroChip("Kohlenhydrate", summary.totalCarbsG)
-            MacroChip("Fett", summary.totalFatG)
+            MacroChip("Protein", todayMacros.proteinG)
+            MacroChip("Kohlenhydrate", todayMacros.carbsG)
+            MacroChip("Fett", todayMacros.fatG)
         }
     }
 }
 
 /**
  * Gruppierter Balken pro Tag: heller Balken = Tagesziel (Wochenziel / 7),
- * dunkler Balken daneben = tatsächlich gegessene Kalorien an dem Tag.
+ * dunkler Balken daneben = tatsächlich gegessene Kalorien an dem Tag. Für
+ * vergangene Tage (nicht "Heute") mit unter 1000 geloggten kcal wird hier
+ * ersatzweise das Tagesziel angezeigt, siehe dailyCalories in MainViewModel.
  * Bewusst eine einzige neutrale Farbe unabhängig davon, ob das Ziel
  * überschritten wurde — die Balkenhöhe im Vergleich zum Zielbalken zeigt das
  * schon von selbst, ohne eine Warnfarbe, die vom Erfassen abschreckt.
